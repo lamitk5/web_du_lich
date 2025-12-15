@@ -1,26 +1,23 @@
 <?php
 /**
- * Đăng xuất
+ * logout.php
+ * Xử lý đăng xuất người dùng
  */
 
-session_start();
+require_once 'config/config.php';
 
-// Xóa tất cả session variables
-$_SESSION = array();
-
-// Xóa session cookie
-if (isset($_COOKIE[session_name()])) {
-    setcookie(session_name(), '', time()-3600, '/');
+// Ghi log
+$user = Auth::getCurrentUser();
+if ($user) {
+    logSuccess("User {$user['email']} logged out");
 }
 
-// Xóa remember me cookie
-if (isset($_COOKIE['remember_token'])) {
-    setcookie('remember_token', '', time()-3600, '/');
-}
+// Logout
+Auth::logout();
 
-// Hủy session
-session_destroy();
+// Flash message
+setFlashMessage('success', 'Bạn đã đăng xuất thành công');
 
-// Redirect về trang chủ
-header('Location: user/trang_chu.php');
-exit;
+// Redirect tới login
+redirect('login.php');
+?>

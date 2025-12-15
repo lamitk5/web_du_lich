@@ -1,0 +1,7 @@
+[2025-12-15 18:13:35] [ERROR] Failed login attempt for email: admin@travel.com | {"ip":"::1"}
+[2025-12-15 18:13:44] [ERROR] Failed login attempt for email: admin@travel.com | {"ip":"::1"}
+[2025-12-15 18:23:36] [SUCCESS] User admin@travel.com logged in from ::1
+[2025-12-15 18:34:13] [SUCCESS] User admin@travel.com logged out
+[2025-12-15 18:34:37] [ERROR] Failed login attempt for email: minhanh.le@gmail.com | {"ip":"::1"}
+[2025-12-15 18:34:56] [SUCCESS] User minhanh.le@email.com logged in from ::1
+[2025-12-15 22:14:14] [SUCCESS] User admin@travel.com logged in from ::1

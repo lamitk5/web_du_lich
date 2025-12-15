@@ -1,118 +1,228 @@
 <?php
 /**
- * Cấu hình kết nối Database
- * Travel Booking System
+ * config/Database.php
+ * Lớp quản lý kết nối và truy vấn CSDL
  */
 
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'travel_booking');
-define('DB_CHARSET', 'utf8mb4');
-
 class Database {
-    private static $instance = null;
-    private $conn;
+    private $connection;
+    private $lastQuery;
+    private $lastError;
     
-    private function __construct() {
+    public function __construct($host, $database, $username, $password) {
         try {
-            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
-            $options = [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ];
+            $this->connection = new mysqli($host, $username, $password, $database);
             
-            $this->conn = new PDO($dsn, DB_USER, DB_PASS, $options);
-        } catch(PDOException $e) {
-            die("Lỗi kết nối database: " . $e->getMessage());
+            if ($this->connection->connect_error) {
+                throw new Exception("Lỗi kết nối: " . $this->connection->connect_error);
+            }
+            
+            $this->connection->set_charset("utf8mb4");
+        } catch (Exception $e) {
+            die("Không thể kết nối CSDL: " . $e->getMessage());
         }
     }
     
-    public static function getInstance() {
-        if (self::$instance === null) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-    
-    public function getConnection() {
-        return $this->conn;
-    }
-    
-    public function query($sql, $params = []) {
-        try {
-            $stmt = $this->conn->prepare($sql);
-            $stmt->execute($params);
-            return $stmt;
-        } catch(PDOException $e) {
-            error_log("Database Query Error: " . $e->getMessage());
-            return false;
-        }
-    }
-    
+    /**
+     * Thực hiện truy vấn SELECT
+     */
     public function select($sql, $params = []) {
-        $stmt = $this->query($sql, $params);
-        return $stmt ? $stmt->fetchAll() : [];
+        $stmt = $this->connection->prepare($sql);
+        
+        if (!$stmt) {
+            $this->lastError = $this->connection->error;
+            return [];
+        }
+        
+        if (!empty($params)) {
+            $types = $this->getParamTypes($params);
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $data = [];
+        
+        while ($row = $result->fetch_assoc()) {
+            $data[] = $row;
+        }
+        
+        $stmt->close();
+        return $data;
     }
     
+    /**
+     * Lấy một bản ghi
+     */
     public function selectOne($sql, $params = []) {
-        $stmt = $this->query($sql, $params);
-        return $stmt ? $stmt->fetch() : null;
+        $results = $this->select($sql, $params);
+        return count($results) > 0 ? $results[0] : null;
     }
     
+    /**
+     * Chèn dữ liệu
+     */
     public function insert($table, $data) {
         $columns = implode(', ', array_keys($data));
-        $placeholders = ':' . implode(', :', array_keys($data));
-        
+        $placeholders = implode(', ', array_fill(0, count($data), '?'));
         $sql = "INSERT INTO $table ($columns) VALUES ($placeholders)";
-        $stmt = $this->query($sql, $data);
         
-        return $stmt ? $this->conn->lastInsertId() : false;
+        $stmt = $this->connection->prepare($sql);
+        
+        if (!$stmt) {
+            $this->lastError = $this->connection->error;
+            return false;
+        }
+        
+        $types = $this->getParamTypes(array_values($data));
+        $values = array_values($data);
+        $stmt->bind_param($types, ...$values);
+        
+        $result = $stmt->execute();
+        $stmt->close();
+        
+        return $result;
     }
     
-    public function update($table, $data, $where, $whereParams = []) {
+    /**
+     * Cập nhật dữ liệu
+     */
+    public function update($table, $data, $condition, $params = []) {
         $set = [];
-        foreach (array_keys($data) as $key) {
-            $set[] = "$key = :$key";
+        foreach ($data as $column => $value) {
+            $set[] = "$column = ?";
         }
-        $set = implode(', ', $set);
+        $setStr = implode(', ', $set);
+        $sql = "UPDATE $table SET $setStr WHERE $condition";
         
-        $sql = "UPDATE $table SET $set WHERE $where";
-        $params = array_merge($data, $whereParams);
+        $stmt = $this->connection->prepare($sql);
         
-        return $this->query($sql, $params) !== false;
-    }
-    
-    public function delete($table, $where, $params = []) {
-        $sql = "DELETE FROM $table WHERE $where";
-        return $this->query($sql, $params) !== false;
-    }
-    
-    public function count($table, $where = '', $params = []) {
-        $sql = "SELECT COUNT(*) as count FROM $table";
-        if ($where) {
-            $sql .= " WHERE $where";
+        if (!$stmt) {
+            $this->lastError = $this->connection->error;
+            return false;
         }
         
+        $allParams = array_merge(array_values($data), $params);
+        $types = $this->getParamTypes($allParams);
+        $stmt->bind_param($types, ...$allParams);
+        
+        $result = $stmt->execute();
+        $stmt->close();
+        
+        return $result;
+    }
+    
+    /**
+     * Xóa dữ liệu
+     */
+    public function delete($table, $condition, $params = []) {
+        $sql = "DELETE FROM $table WHERE $condition";
+        
+        $stmt = $this->connection->prepare($sql);
+        
+        if (!$stmt) {
+            $this->lastError = $this->connection->error;
+            return false;
+        }
+        
+        if (!empty($params)) {
+            $types = $this->getParamTypes($params);
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        $result = $stmt->execute();
+        $stmt->close();
+        
+        return $result;
+    }
+    
+    /**
+     * Đếm số bản ghi
+     */
+    public function count($table, $condition = '1=1', $params = []) {
+        $sql = "SELECT COUNT(*) as total FROM $table WHERE $condition";
         $result = $this->selectOne($sql, $params);
-        return $result ? (int)$result['count'] : 0;
+        return $result ? (int)$result['total'] : 0;
     }
     
+    /**
+     * Lấy loại dữ liệu của tham số
+     */
+    private function getParamTypes($params) {
+        $types = '';
+        foreach ($params as $param) {
+            if (is_int($param)) {
+                $types .= 'i';
+            } elseif (is_float($param)) {
+                $types .= 'd';
+            } else {
+                $types .= 's';
+            }
+        }
+        return $types;
+    }
+    
+    /**
+     * Bắt đầu transaction
+     */
     public function beginTransaction() {
-        return $this->conn->beginTransaction();
+        $this->connection->begin_transaction();
     }
     
+    /**
+     * Commit transaction
+     */
     public function commit() {
-        return $this->conn->commit();
+        $this->connection->commit();
     }
     
+    /**
+     * Rollback transaction
+     */
     public function rollback() {
-        return $this->conn->rollback();
+        $this->connection->rollback();
     }
-} // <--- Dấu này đóng class Database. Rất quan trọng!
-
-// Hàm này phải nằm NGOÀI class Database
-function db() {
-    return Database::getInstance();
+    
+    /**
+     * Lấy lỗi cuối cùng
+     */
+    public function getLastError() {
+        return $this->lastError;
+    }
+    
+    /**
+     * Lấy ID được chèn cuối cùng
+     */
+    public function getLastInsertId() {
+        return $this->connection->insert_id;
+    }
+    
+    /**
+     * Đóng kết nối
+     */
+    public function close() {
+        if ($this->connection) {
+            $this->connection->close();
+        }
+    }
+    
+    /**
+     * Thực hiện truy vấn tùy chỉnh
+     */
+    public function query($sql, $params = []) {
+        $stmt = $this->connection->prepare($sql);
+        
+        if (!$stmt) {
+            $this->lastError = $this->connection->error;
+            return false;
+        }
+        
+        if (!empty($params)) {
+            $types = $this->getParamTypes($params);
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        return $stmt->execute();
+    }
 }
+?>

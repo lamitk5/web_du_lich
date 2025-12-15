@@ -1,0 +1,7 @@
+[2025-12-14 15:22:55] [ERROR] Failed login attempt for email: admin@gmail.com | {"ip":"::1"}
+[2025-12-14 15:22:59] [ERROR] Failed login attempt for email: admin@gmail.com | {"ip":"::1"}
+[2025-12-14 15:23:04] [ERROR] Failed login attempt for email: admin@gmail.com | {"ip":"::1"}
+[2025-12-14 15:23:57] [ERROR] Failed login attempt for email: admin@homestay.com | {"ip":"::1"}
+[2025-12-14 15:24:00] [ERROR] Failed login attempt for email: admin@homestay.com | {"ip":"::1"}
+[2025-12-14 15:24:32] [ERROR] Failed login attempt for email: admin@homestay.com | {"ip":"::1"}
+[2025-12-14 15:40:48] [SUCCESS] User admin@travel.com logged in from ::1

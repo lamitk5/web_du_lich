@@ -1,235 +1,241 @@
 <?php
 /**
- * Trang đăng nhập
+ * login.php
+ * Trang đăng nhập chung
+ * Admin & User đều dùng trang này
+ * Sau login, tự động redirect đến trang thích hợp
  */
 
 require_once 'config/config.php';
 
-// Nếu đã đăng nhập thì chuyển hướng
-if (isLoggedIn()) {
-    redirect(isAdmin() ? 'admin/dashboard.php' : 'user/trang_chu.php');
+// Nếu đã đăng nhập, redirect tới trang thích hợp
+if (Auth::isLoggedIn()) {
+    if (Auth::isAdmin()) {
+        redirect('admin/dashboard.php');
+    } else {
+        redirect('user/trang_chu.php');
+    }
 }
 
 $error = '';
-$success = '';
 
-// Xử lý đăng nhập
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = cleanInput($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $remember = isset($_POST['remember']);
-    
-    // Validate
-    if (empty($email) || empty($password)) {
-        $error = 'Vui lòng nhập đầy đủ thông tin';
+    // Kiểm tra IP bị khóa
+    if (isIPLocked()) {
+        $error = 'Tài khoản của bạn bị khóa tạm thời. Vui lòng thử lại sau 15 phút.';
     } else {
-        // Tìm user
-        $user = db()->selectOne("SELECT * FROM users WHERE email = ?", [$email]);
+        $email = cleanInput($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
         
-        if ($user && verifyPassword($password, $user['password'])) {
-            // Check status
-            if ($user['status'] === 'blocked') {
-                $error = 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.';
-            } else if ($user['status'] === 'inactive') {
-                $error = 'Tài khoản của bạn chưa được kích hoạt.';
-            } else {
-                // Đăng nhập thành công
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['full_name'] = $user['full_name'];
-                $_SESSION['role'] = $user['role'];
-                
-                // Remember me
-                if ($remember) {
-                    $token = bin2hex(random_bytes(32));
-                    setcookie('remember_token', $token, time() + (86400 * 30), '/');
-                    // Lưu token vào database (cần tạo bảng remember_tokens)
-                }
-                
-                // Admin và User đều được chuyển về trang chủ
-                // Admin sẽ thấy menu "Quản lý" ở trang chủ
-                redirect('user/trang_chu.php');
-            }
+        // Kiểm tra input
+        if (empty($email) || empty($password)) {
+            $error = 'Vui lòng nhập email và mật khẩu';
+        } elseif (!isValidEmail($email)) {
+            $error = 'Email không hợp lệ';
         } else {
-            $error = 'Email hoặc mật khẩu không chính xác';
+            // Xác minh user
+            $user = Auth::verifyEmail($email, $password);
+            
+            if ($user) {
+                // Login thành công
+                Auth::login($user);
+                recordLoginAttempt(true);
+                logSuccess("User {$user['email']} logged in from " . getUserIP());
+                
+                // Redirect tới trang thích hợp
+                if ($user['role'] === 'admin') {
+                    redirect('user/trang_chu.php');
+                } else {
+                    redirect('user/trang_chu.php');
+                }
+            } else {
+                // Login thất bại
+                recordLoginAttempt(false);
+                $error = 'Email hoặc mật khẩu không chính xác';
+                logError("Failed login attempt for email: {$email}", ['ip' => getUserIP()]);
+            }
         }
     }
 }
 
-// Lấy flash message nếu có
-$flash = getFlashMessage();
-if ($flash) {
-    if ($flash['type'] === 'success') {
-        $success = $flash['message'];
-    } else {
-        $error = $flash['message'];
-    }
-}
+$pageTitle = 'Đăng Nhập';
 ?>
 <!DOCTYPE html>
 <html class="light" lang="vi">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Đăng nhập - <?php echo SITE_NAME; ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title><?php echo $pageTitle; ?> - <?php echo SITE_NAME; ?></title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <script>
         tailwind.config = {
+            darkMode: "class",
             theme: {
                 extend: {
-                    colors: {
-                        "primary": "#0da6f2",
+                    colors: { 
+                        "primary": "#0da6f2", 
+                        "background-light": "#f5f7f8", 
+                        "background-dark": "#101c22" 
                     },
-                    fontFamily: {
-                        "display": ["Plus Jakarta Sans", "sans-serif"]
-                    }
-                }
-            }
+                    fontFamily: { "display": ["Plus Jakarta Sans", "sans-serif"] }
+                },
+            },
         }
     </script>
     <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
     </style>
 </head>
-<body class="font-display bg-gray-50">
-<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
+<body class="font-display flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
         <!-- Logo -->
-        <div class="text-center">
-            <div class="flex justify-center">
-                <div class="size-16 text-primary">
-                    <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 42.4379C4 42.4379 14.0962 36.0744 24 41.1692C35.0664 46.8624 44 42.2078 44 42.2078L44 7.01134C44 7.01134 35.068 11.6577 24.0031 5.96913C14.0971 0.876274 4 7.27094 4 7.27094L4 42.4379Z" fill="currentColor"></path>
-                    </svg>
-                </div>
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center size-16 bg-white rounded-2xl shadow-lg mb-4">
+                <span class="material-symbols-outlined text-4xl text-primary">travel_explore</span>
             </div>
-            <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
-                Đăng nhập vào <?php echo SITE_NAME; ?>
-            </h2>
-            <p class="mt-2 text-sm text-gray-600">
-                Hoặc 
-                <a href="register.php" class="font-medium text-primary hover:text-primary/80">
-                    tạo tài khoản mới
-                </a>
-            </p>
+            <h1 class="text-4xl font-bold text-white mb-2"><?php echo SITE_NAME; ?></h1>
+            <p class="text-white/80">Travel & Booking Management System</p>
         </div>
 
-        <!-- Form -->
-        <div class="bg-white rounded-xl shadow-lg p-8">
-            <?php if ($error): ?>
-            <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
-                <span class="material-symbols-outlined text-red-500">error</span>
-                <span><?php echo htmlspecialchars($error); ?></span>
-            </div>
-            <?php endif; ?>
+        <!-- Login Card -->
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-8 md:p-10">
+                <h2 class="text-2xl font-bold text-gray-900 mb-1">Đăng Nhập</h2>
+                <p class="text-gray-500 text-sm mb-6">Nhập thông tin tài khoản của bạn</p>
 
-            <?php if ($success): ?>
-            <div class="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-2">
-                <span class="material-symbols-outlined text-green-500">check_circle</span>
-                <span><?php echo htmlspecialchars($success); ?></span>
-            </div>
-            <?php endif; ?>
-
-            <form method="POST" action="" class="space-y-6">
-                <!-- Email -->
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                        Email
-                    </label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">email</span>
-                        <input 
-                            id="email" 
-                            name="email" 
-                            type="email" 
-                            required 
-                            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-                            class="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="your.email@example.com"
-                        />
+                <!-- Error Message -->
+                <?php if (!empty($error)): ?>
+                <div class="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+                    <span class="material-symbols-outlined flex-shrink-0 mt-0.5">error</span>
+                    <div>
+                        <p class="font-medium text-sm"><?php echo htmlspecialchars($error); ?></p>
                     </div>
                 </div>
+                <?php endif; ?>
 
-                <!-- Password -->
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                        Mật khẩu
-                    </label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
-                        <input 
-                            id="password" 
-                            name="password" 
-                            type="password" 
-                            required 
-                            class="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="••••••••"
-                        />
+                <!-- Login Form -->
+                <form method="POST" class="space-y-5">
+                    <!-- Email -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">mail</span>
+                            <input 
+                                type="email" 
+                                name="email" 
+                                placeholder="admin@flyhigh.com"
+                                value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
+                                class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                required
+                            />
+                        </div>
                     </div>
-                </div>
 
-                <!-- Remember & Forgot -->
-                <div class="flex items-center justify-between">
+                    <!-- Password -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Mật khẩu</label>
+                            <a href="forgot_password.php" class="text-xs text-primary hover:underline">Quên mật khẩu?</a>
+                        </div>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
+                            <input 
+                                type="password" 
+                                id="password"
+                                name="password" 
+                                placeholder="Nhập mật khẩu"
+                                class="w-full rounded-lg border border-gray-300 pl-10 pr-10 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                required
+                            />
+                            <button 
+                                type="button"
+                                onclick="togglePassword()"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                <span class="material-symbols-outlined" id="toggleIcon">visibility</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Remember Me -->
                     <div class="flex items-center">
                         <input 
-                            id="remember" 
-                            name="remember" 
                             type="checkbox" 
-                            class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                            id="remember_me"
+                            name="remember_me" 
+                            class="rounded border-gray-300 text-primary focus:ring-primary"
                         />
-                        <label for="remember" class="ml-2 block text-sm text-gray-900">
-                            Ghi nhớ đăng nhập
+                        <label for="remember_me" class="ml-2 text-sm text-gray-600">
+                            Nhớ tôi trong 30 ngày
                         </label>
                     </div>
-                    <div class="text-sm">
-                        <a href="forgot-password.php" class="font-medium text-primary hover:text-primary/80">
-                            Quên mật khẩu?
-                        </a>
-                    </div>
-                </div>
 
-                <!-- Submit -->
-                <div>
+                    <!-- Login Button -->
                     <button 
-                        type="submit" 
-                        class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+                        type="submit"
+                        class="w-full bg-gradient-to-r from-primary to-blue-600 text-white font-bold py-2.5 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 mt-6"
                     >
-                        <span class="material-symbols-outlined mr-2">login</span>
-                        Đăng nhập
+                        <span class="material-symbols-outlined">login</span>
+                        <span>Đăng Nhập</span>
                     </button>
-                </div>
+                </form>
 
-                <!-- Demo accounts -->
-                <div class="mt-6 border-t border-gray-200 pt-6">
-                    <p class="text-xs text-gray-500 mb-3">Tài khoản demo:</p>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <div class="bg-gray-50 p-2 rounded">
-                            <p class="font-semibold text-gray-700">Admin:</p>
-                            <p class="text-gray-600">admin@travel.com</p>
-                            <p class="text-gray-600">password</p>
-                        </div>
-                        <div class="bg-gray-50 p-2 rounded">
-                            <p class="font-semibold text-gray-700">User:</p>
-                            <p class="text-gray-600">minhanh.le@email.com</p>
-                            <p class="text-gray-600">password</p>
-                        </div>
+                <!-- Divider -->
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">Hoặc</span>
                     </div>
                 </div>
-            </form>
+
+                <!-- Register Link -->
+                <p class="text-center text-sm text-gray-600">
+                    Chưa có tài khoản? 
+                    <a href="register.php" class="text-primary font-bold hover:underline">
+                        Đăng ký ngay
+                    </a>
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 px-8 py-4 text-center border-t border-gray-200">
+                <p class="text-xs text-gray-500">
+                    © 2024 <?php echo SITE_NAME; ?>. Tất cả quyền được bảo vệ.
+                </p>
+            </div>
         </div>
 
-        <!-- Back to home -->
-        <div class="text-center">
-            <a href="user/trang_chu.php" class="text-sm text-gray-600 hover:text-primary flex items-center justify-center gap-1">
-                <span class="material-symbols-outlined text-base">arrow_back</span>
-                Về trang chủ
-            </a>
+        <!-- Demo Credentials -->
+        <div class="mt-6 rounded-lg bg-white/10 border border-white/20 p-4 backdrop-blur-sm">
+            <p class="text-white/80 text-xs font-medium mb-2">📝 Tài khoản demo:</p>
+            <ul class="text-white/70 text-xs space-y-1">
+                <li><strong>Admin:</strong> admin@travel.com / password</li>
+                <li><strong>User:</strong> minhanh.le@email.com / password</li>
+            </ul>
         </div>
     </div>
-</div>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('toggleIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = 'visibility_off';
+            } else {
+                input.type = 'password';
+                icon.textContent = 'visibility';
+            }
+        }
+    </script>
 </body>
 </html>

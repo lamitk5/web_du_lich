@@ -1,19 +1,19 @@
 <?php
 /**
- * Trang Dashboard Admin
+ * Admin Dashboard
  * Hiển thị thống kê tổng quan hệ thống
  */
 
-require_once '../config/config.php';
+require_once '../config/config.php'; // Giữ nguyên đường dẫn ra config bên ngoài
 requireAdmin();
 
 // Lấy thống kê tổng quan
 $stats = [
-    'total_users' => db()->count('users'),
+    'total_users' => db()->count('users', "role = 'user'"),
     'total_bookings' => db()->count('bookings'),
     'total_flights' => db()->count('flights'),
     'total_hotels' => db()->count('hotels'),
-    'total_cars' => db()->count('cars'),
+    'total_cars' => db()->count('vehicles'),
 ];
 
 // Doanh thu tháng này
@@ -41,7 +41,7 @@ $recentBookings = db()->select("
     INNER JOIN users u ON b.user_id = u.id
     LEFT JOIN booking_details bd ON b.id = bd.booking_id
     ORDER BY b.created_at DESC
-    LIMIT 10
+    LIMIT 5
 ");
 
 // Chuyến bay sắp khởi hành
@@ -67,14 +67,15 @@ $serviceStats = db()->select("
     GROUP BY bd.service_type
 ");
 
-$currentUser = getCurrentUser();
+$pageTitle = 'Dashboard';
+$pageDescription = 'Xem thống kê tổng quan hệ thống';
 ?>
 <!DOCTYPE html>
 <html class="light" lang="vi">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Dashboard - <?php echo SITE_NAME; ?> Admin</title>
+    <title><?php echo $pageTitle; ?> - <?php echo SITE_NAME; ?> Admin</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -91,73 +92,18 @@ $currentUser = getCurrentUser();
     </script>
     <style>
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-        .active-nav { background-color: rgba(13, 166, 242, 0.1); color: #0da6f2; }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
-<div class="flex min-h-screen w-full">
-    <!-- Sidebar -->
-    <aside class="flex w-64 flex-col gap-y-6 border-r border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-        <div class="flex items-center gap-3 px-2">
-            <div class="bg-primary/10 text-primary rounded-lg p-2">
-                <span class="material-symbols-outlined">travel_explore</span>
-            </div>
-            <h1 class="text-xl font-bold tracking-tight"><?php echo SITE_NAME; ?> Admin</h1>
-        </div>
-        <nav class="flex flex-1 flex-col gap-2">
-            <a class="active-nav flex items-center gap-3 rounded-lg px-3 py-2" href="dashboard.php">
-                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
-                <p class="text-sm font-medium">Dashboard</p>
-            </a>
-            <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800" href="qly_chuyenbay.php">
-                <span class="material-symbols-outlined">flight</span>
-                <p class="text-sm font-medium">Vé máy bay</p>
-            </a>
-            <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800" href="qly_khachsan.php">
-                <span class="material-symbols-outlined">hotel</span>
-                <p class="text-sm font-medium">Khách sạn</p>
-            </a>
-            <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800" href="qly_xe.php">
-                <span class="material-symbols-outlined">directions_car</span>
-                <p class="text-sm font-medium">Quản lý xe</p>
-            </a>
-            <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800" href="qly_booking.php">
-                <span class="material-symbols-outlined">confirmation_number</span>
-                <p class="text-sm font-medium">Đặt chỗ</p>
-            </a>
-            <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800" href="qly_kh.php">
-                <span class="material-symbols-outlined">group</span>
-                <p class="text-sm font-medium">Người dùng</p>
-            </a>
-        </nav>
-        <div class="flex items-center gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-            <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style='background-image: url("https://ui-avatars.com/api/?name=<?php echo urlencode($currentUser['full_name']); ?>&background=0da6f2&color=fff");'></div>
-            <div class="flex flex-col">
-                <p class="text-sm font-medium"><?php echo htmlspecialchars($currentUser['full_name']); ?></p>
-                <p class="text-xs text-gray-500">Quản trị viên</p>
-            </div>
-        </div>
-    </aside>
+<div class="flex w-full min-h-screen">
+    <?php include 'components/sidebar.php'; ?>
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto">
-        <header class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/80 px-6 py-3 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
-            <div>
-                <h2 class="text-lg font-bold">Dashboard</h2>
-                <p class="text-xs text-gray-500">Chào mừng trở lại, <?php echo htmlspecialchars($currentUser['full_name']); ?>!</p>
-            </div>
-            <div class="flex gap-2">
-                <button class="flex size-9 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
-                    <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">notifications</span>
-                </button>
-            </div>
-        </header>
+    <main class="flex-1 flex flex-col">
+        <?php include 'components/header.php'; ?>
 
-        <div class="p-6 md:p-10">
-            <!-- Stats Cards -->
+        <div class="flex-1 overflow-y-auto p-6 md:p-10">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <!-- Doanh thu tháng -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
                     <div class="flex items-start justify-between mb-4">
                         <div class="bg-white/20 rounded-lg p-3">
                             <span class="material-symbols-outlined text-3xl">payments</span>
@@ -169,8 +115,7 @@ $currentUser = getCurrentUser();
                     <p class="text-xs opacity-75 mt-2"><?php echo $revenue['count']; ?> đơn hoàn thành</p>
                 </div>
 
-                <!-- Tổng đặt chỗ -->
-                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
                     <div class="flex items-start justify-between mb-4">
                         <div class="bg-green-100 dark:bg-green-900/30 rounded-lg p-3">
                             <span class="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">confirmation_number</span>
@@ -181,8 +126,7 @@ $currentUser = getCurrentUser();
                     <p class="text-xs text-gray-500 mt-2">Tất cả thời gian</p>
                 </div>
 
-                <!-- Người dùng -->
-                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
                     <div class="flex items-start justify-between mb-4">
                         <div class="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-3">
                             <span class="material-symbols-outlined text-3xl text-purple-600 dark:text-purple-400">group</span>
@@ -193,8 +137,7 @@ $currentUser = getCurrentUser();
                     <p class="text-xs text-gray-500 mt-2">Tài khoản đã đăng ký</p>
                 </div>
 
-                <!-- Chuyến bay -->
-                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
                     <div class="flex items-start justify-between mb-4">
                         <div class="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-3">
                             <span class="material-symbols-outlined text-3xl text-amber-600 dark:text-amber-400">flight</span>
@@ -207,7 +150,6 @@ $currentUser = getCurrentUser();
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <!-- Thống kê theo dịch vụ -->
                 <div class="lg:col-span-1 bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
                     <h3 class="text-lg font-bold mb-4">Dịch vụ phổ biến</h3>
                     <div class="space-y-4">
@@ -215,7 +157,7 @@ $currentUser = getCurrentUser();
                         $serviceIcons = [
                             'flight' => ['icon' => 'flight', 'color' => 'blue', 'name' => 'Vé máy bay'],
                             'hotel' => ['icon' => 'hotel', 'color' => 'green', 'name' => 'Khách sạn'],
-                            'car' => ['icon' => 'directions_car', 'color' => 'amber', 'name' => 'Thuê xe']
+                            'vehicle' => ['icon' => 'directions_car', 'color' => 'amber', 'name' => 'Thuê xe']
                         ];
                         
                         $totalService = array_sum(array_column($serviceStats, 'count'));
@@ -246,7 +188,6 @@ $currentUser = getCurrentUser();
                     </div>
                 </div>
 
-                <!-- Trạng thái đặt chỗ -->
                 <div class="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
                     <h3 class="text-lg font-bold mb-4">Trạng thái đặt chỗ</h3>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -266,7 +207,7 @@ $currentUser = getCurrentUser();
                         foreach ($statusConfig as $status => $config):
                             $count = $bookingStatusMap[$status] ?? 0;
                         ?>
-                        <div class="bg-<?php echo $config['color']; ?>-50 dark:bg-<?php echo $config['color']; ?>-900/20 rounded-lg p-4 border border-<?php echo $config['color']; ?>-200 dark:border-<?php echo $config['color']; ?>-800">
+                        <div class="bg-<?php echo $config['color']; ?>-50 dark:bg-<?php echo $config['color']; ?>-900/20 rounded-lg p-4 border border-<?php echo $config['color']; ?>-200 dark:border-<?php echo $config['color']; ?>-800 hover:shadow-md transition-shadow">
                             <div class="flex items-center gap-2 mb-2">
                                 <span class="material-symbols-outlined text-<?php echo $config['color']; ?>-600 dark:text-<?php echo $config['color']; ?>-400 text-lg"><?php echo $config['icon']; ?></span>
                             </div>
@@ -279,14 +220,13 @@ $currentUser = getCurrentUser();
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Đặt chỗ gần đây -->
                 <div class="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                         <h3 class="text-lg font-bold">Đặt chỗ gần đây</h3>
                         <a href="qly_booking.php" class="text-primary hover:underline text-sm font-medium">Xem tất cả</a>
                     </div>
                     <div class="divide-y divide-gray-200 dark:divide-gray-700">
-                        <?php foreach (array_slice($recentBookings, 0, 5) as $booking): 
+                        <?php foreach ($recentBookings as $booking): 
                             $statusClass = $booking['status'] === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 
                                           ($booking['status'] === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' : 
                                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300');
@@ -316,7 +256,6 @@ $currentUser = getCurrentUser();
                     </div>
                 </div>
 
-                <!-- Chuyến bay sắp khởi hành -->
                 <div class="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                         <h3 class="text-lg font-bold">Chuyến bay sắp khởi hành</h3>

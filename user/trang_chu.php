@@ -7,9 +7,6 @@
 
 require_once '../config/config.php';
 
-// Bắt buộc login để truy cập trang này
-requireLogin();
-
 // Lấy thông tin user hiện tại
 $currentUser = getCurrentUser();
 $isLoggedIn = Auth::isLoggedIn();
@@ -41,6 +38,7 @@ $featuredFlights = db()->select("
     ORDER BY f.price ASC
     LIMIT 4
 ");
+require_once 'includes/header.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -77,110 +75,7 @@ $featuredFlights = db()->select("
 <body class="font-display bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200">
 <div class="relative flex min-h-screen w-full flex-col">
     <!-- Header -->
-    <header class="sticky top-0 z-50 w-full bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
-        <div class="container mx-auto px-4">
-            <div class="flex h-20 items-center justify-between">
-                <!-- Logo -->
-                <div class="flex items-center gap-3">
-                    <a class="flex items-center gap-3 text-[#0d171c] dark:text-white hover:opacity-80 transition-opacity" href="trang_chu.php">
-                        <div class="size-8 text-primary">
-                            <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z" fill="currentColor"></path>
-                            </svg>
-                        </div>
-                        <h2 class="text-xl font-bold leading-tight tracking-tight"><?php echo SITE_NAME; ?></h2>
-                    </a>
-                </div>
-
-                <!-- Navigation Menu -->
-                <nav class="hidden lg:flex items-center gap-8">
-                    <a class="text-[#0d171c] dark:text-white text-sm font-medium hover:text-primary transition-colors" href="trang_chu.php">Trang chủ</a>
-                    <a class="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="tim_kiem_chuyenbay.php">Vé máy bay</a>
-                    <a class="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="tim_kiem_khachsan.php">Khách sạn</a>
-                    <a class="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="tim_kiem_xe.php">Thuê xe</a>
-                    <a class="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="thongtin.php">Đặt chỗ của tôi</a>
-                    
-                    <!-- Admin Menu - Only show for admins -->
-                    <?php if ($isAdmin): ?>
-                    <div class="relative group">
-                        <button class="flex items-center gap-1 text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors">
-                            <span>Quản lý</span>
-                            <span class="material-symbols-outlined text-base">expand_more</span>
-                        </button>
-                        <!-- Dropdown Menu for Admin -->
-                        <div class="absolute top-full left-0 mt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
-                            <a href="../admin/dashboard.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">dashboard</span>
-                                <span>Dashboard</span>
-                            </a>
-                            <a href="../admin/qly_booking.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">confirmation_number</span>
-                                <span>Quản lý đặt chỗ</span>
-                            </a>
-                            <a href="../admin/qly_chuyenbay.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">flight</span>
-                                <span>Quản lý chuyến bay</span>
-                            </a>
-                            <a href="../admin/qly_khachsan.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">hotel</span>
-                                <span>Quản lý khách sạn</span>
-                            </a>
-                            <a href="../admin/qly_xe.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">directions_car</span>
-                                <span>Quản lý xe</span>
-                            </a>
-                            <a href="../admin/qly_kh.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">group</span>
-                                <span>Quản lý người dùng</span>
-                            </a>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                </nav>
-
-                <!-- Right Side: Theme Toggle & User Menu -->
-                <div class="flex items-center gap-3">
-                    <!-- Theme Toggle Button -->
-                    <button 
-                        id="themeToggle"
-                        class="size-10 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        title="Toggle dark mode"
-                    >
-                        <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">dark_mode</span>
-                    </button>
-
-                    <!-- User Menu -->
-                    <div class="relative group">
-                        <button class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                            <div class="size-9 rounded-full bg-cover bg-center" style='background-image: url("https://ui-avatars.com/api/?name=<?php echo urlencode($currentUser['full_name']); ?>&background=0da6f2&color=fff");'></div>
-                            <div class="hidden sm:block text-left">
-                                <p class="text-sm font-semibold"><?php echo htmlspecialchars(substr($currentUser['full_name'], 0, 20)); ?></p>
-                                <p class="text-xs text-gray-500"><?php echo $isAdmin ? 'Admin' : 'User'; ?></p>
-                            </div>
-                            <span class="material-symbols-outlined text-base">expand_more</span>
-                        </button>
-                        
-                        <!-- User Dropdown Menu -->
-                        <div class="absolute top-full right-0 mt-2 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
-                            <a href="thongtin.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">person</span>
-                                <span>Thông tin cá nhân</span>
-                            </a>
-                            <a href="thongtin.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <span class="material-symbols-outlined text-base">confirmation_number</span>
-                                <span>Đặt chỗ của tôi</span>
-                            </a>
-                            <hr class="my-2 border-gray-200 dark:border-gray-700">
-                            <a href="../logout.php" class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                                <span class="material-symbols-outlined text-base">logout</span>
-                                <span>Đăng xuất</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    
 
     <main class="flex-grow">
         <!-- Hero Section -->

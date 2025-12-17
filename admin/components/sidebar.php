@@ -21,7 +21,7 @@ $user = getCurrentUser();
         <div class="bg-primary/10 text-primary rounded-lg p-2">
             <span class="material-symbols-outlined">travel_explore</span>
         </div>
-        <h1 class="text-xl font-bold tracking-tight"><?php echo SITE_NAME; ?> Admin</h1>
+        <h1 class="text-xl font-bold tracking-tight"> <a href="../user/trang_chu.php"/><?php echo SITE_NAME; ?> Admin</h1>
     </div>
 
     <nav class="flex flex-1 flex-col gap-2">
@@ -35,9 +35,9 @@ $user = getCurrentUser();
             <p class="text-sm font-medium">Vé máy bay</p>
         </a>
 
-        <a class="flex items-center gap-3 rounded-lg px-3 py-2 <?php echo is_active('qly_khachsan.php', $current_page) ? $active_class : $normal_class; ?>" href="qly_khachsan.php">
-            <span class="material-symbols-outlined" style="<?php echo is_active('qly_khachsan.php', $current_page) ? "font-variation-settings: 'FILL' 1;" : ""; ?>">hotel</span>
-            <p class="text-sm font-medium">Khách sạn</p>
+        <a class="flex items-center gap-3 rounded-lg px-3 py-2 <?php echo is_active('quanly_homestay.php', $current_page) ? $active_class : $normal_class; ?>" href="quanly_homestay.php">
+            <span class="material-symbols-outlined" style="<?php echo is_active('quanly_homestay.php', $current_page) ? "font-variation-settings: 'FILL' 1;" : ""; ?>">hotel</span>
+            <p class="text-sm font-medium">Homestays</p>
         </a>
 
         <a class="flex items-center gap-3 rounded-lg px-3 py-2 <?php echo is_active('qly_xe.php', $current_page) ? $active_class : $normal_class; ?>" href="qly_xe.php">

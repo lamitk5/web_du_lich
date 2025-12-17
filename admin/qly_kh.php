@@ -4,6 +4,19 @@
  */
 
 require_once '../config/config.php';
+if (!function_exists('requireAdmin')) {
+    /**
+     * Kiểm tra người dùng đã đăng nhập và có quyền Admin chưa.
+     * Nếu không, chuyển hướng về trang đăng nhập hoặc trang báo lỗi.
+     */
+    function requireAdmin() {
+        if (!Auth::isLoggedIn() || !Auth::isAdmin()) {
+            // Chuyển hướng về trang đăng nhập/trang chủ người dùng
+            header('Location: ../login.php'); 
+            exit;
+        }
+    }
+}
 requireAdmin();
 
 // --- XỬ LÝ HÀNH ĐỘNG (KHÓA / MỞ KHÓA) ---
@@ -99,14 +112,10 @@ $flash = getFlashMessage();
 <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 overflow-y-auto">
-        <header class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/80 px-6 py-3 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
-            <h2 class="text-lg font-bold">Quản lý Người dùng</h2>
-            <div class="flex gap-2">
-                <button class="flex size-9 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
-                    <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">notifications</span>
-                </button>
-            </div>
-        </header>
+    <?php 
+    $pageTitle = 'Quản lý Người dùng';
+    include 'components/header.php'; 
+    ?>
 
         <div class="p-6 md:p-10">
             <?php if ($flash): ?>

@@ -6,7 +6,6 @@
 
 class Database {
     private $connection;
-    private $lastQuery;
     private $lastError;
     
     public function __construct($host, $database, $username, $password) {
@@ -22,9 +21,16 @@ class Database {
             die("Không thể kết nối CSDL: " . $e->getMessage());
         }
     }
+
+    /**
+     * Lấy đối tượng kết nối mysqli gốc (để dùng cho các hàm cần mysqli raw)
+     */
+    public function getConnection() {
+        return $this->connection;
+    }
     
     /**
-     * Thực hiện truy vấn SELECT
+     * Thực hiện truy vấn SELECT (Trả về mảng kết quả)
      */
     public function select($sql, $params = []) {
         $stmt = $this->connection->prepare($sql);
@@ -52,76 +58,23 @@ class Database {
     }
     
     /**
-     * Lấy một bản ghi
+     * Lấy một dòng dữ liệu duy nhất
      */
     public function selectOne($sql, $params = []) {
         $results = $this->select($sql, $params);
         return count($results) > 0 ? $results[0] : null;
     }
-    
+
     /**
-     * Chèn dữ liệu
+     * Thực thi câu lệnh SQL Raw (INSERT, UPDATE, DELETE) có tham số
+     * Hàm này quan trọng để code Booking hoạt động
      */
-    public function insert($table, $data) {
-        $columns = implode(', ', array_keys($data));
-        $placeholders = implode(', ', array_fill(0, count($data), '?'));
-        $sql = "INSERT INTO $table ($columns) VALUES ($placeholders)";
-        
+    public function execute($sql, $params = []) {
         $stmt = $this->connection->prepare($sql);
         
         if (!$stmt) {
             $this->lastError = $this->connection->error;
-            return false;
-        }
-        
-        $types = $this->getParamTypes(array_values($data));
-        $values = array_values($data);
-        $stmt->bind_param($types, ...$values);
-        
-        $result = $stmt->execute();
-        $stmt->close();
-        
-        return $result;
-    }
-    
-    /**
-     * Cập nhật dữ liệu
-     */
-    public function update($table, $data, $condition, $params = []) {
-        $set = [];
-        foreach ($data as $column => $value) {
-            $set[] = "$column = ?";
-        }
-        $setStr = implode(', ', $set);
-        $sql = "UPDATE $table SET $setStr WHERE $condition";
-        
-        $stmt = $this->connection->prepare($sql);
-        
-        if (!$stmt) {
-            $this->lastError = $this->connection->error;
-            return false;
-        }
-        
-        $allParams = array_merge(array_values($data), $params);
-        $types = $this->getParamTypes($allParams);
-        $stmt->bind_param($types, ...$allParams);
-        
-        $result = $stmt->execute();
-        $stmt->close();
-        
-        return $result;
-    }
-    
-    /**
-     * Xóa dữ liệu
-     */
-    public function delete($table, $condition, $params = []) {
-        $sql = "DELETE FROM $table WHERE $condition";
-        
-        $stmt = $this->connection->prepare($sql);
-        
-        if (!$stmt) {
-            $this->lastError = $this->connection->error;
+            // Ghi log lỗi nếu cần thiết
             return false;
         }
         
@@ -137,6 +90,40 @@ class Database {
     }
     
     /**
+     * Chèn dữ liệu (Helper function)
+     */
+    public function insert($table, $data) {
+        $columns = implode(', ', array_keys($data));
+        $placeholders = implode(', ', array_fill(0, count($data), '?'));
+        $sql = "INSERT INTO $table ($columns) VALUES ($placeholders)";
+        
+        return $this->execute($sql, array_values($data));
+    }
+    
+    /**
+     * Cập nhật dữ liệu (Helper function)
+     */
+    public function update($table, $data, $condition, $params = []) {
+        $set = [];
+        foreach ($data as $column => $value) {
+            $set[] = "$column = ?";
+        }
+        $setStr = implode(', ', $set);
+        $sql = "UPDATE $table SET $setStr WHERE $condition";
+        
+        $allParams = array_merge(array_values($data), $params);
+        return $this->execute($sql, $allParams);
+    }
+    
+    /**
+     * Xóa dữ liệu (Helper function)
+     */
+    public function delete($table, $condition, $params = []) {
+        $sql = "DELETE FROM $table WHERE $condition";
+        return $this->execute($sql, $params);
+    }
+    
+    /**
      * Đếm số bản ghi
      */
     public function count($table, $condition = '1=1', $params = []) {
@@ -145,9 +132,8 @@ class Database {
         return $result ? (int)$result['total'] : 0;
     }
     
-    /**
-     * Lấy loại dữ liệu của tham số
-     */
+    // --- Các hàm tiện ích ---
+
     private function getParamTypes($params) {
         $types = '';
         foreach ($params as $param) {
@@ -162,67 +148,50 @@ class Database {
         return $types;
     }
     
-    /**
-     * Bắt đầu transaction
-     */
-    public function beginTransaction() {
-        $this->connection->begin_transaction();
+    public function getLastInsertId() {
+        return $this->connection->insert_id;
     }
-    
-    /**
-     * Commit transaction
-     */
-    public function commit() {
-        $this->connection->commit();
-    }
-    
-    /**
-     * Rollback transaction
-     */
-    public function rollback() {
-        $this->connection->rollback();
-    }
-    
-    /**
-     * Lấy lỗi cuối cùng
-     */
+
     public function getLastError() {
         return $this->lastError;
     }
     
     /**
-     * Lấy ID được chèn cuối cùng
+     * Bắt đầu một giao dịch (Transaction)
      */
-    public function getLastInsertId() {
-        return $this->connection->insert_id;
+    public function beginTransaction() {
+        if (!$this->connection->begin_transaction()) {
+            $this->lastError = $this->connection->error;
+            return false;
+        }
+        return true;
     }
-    
+
     /**
-     * Đóng kết nối
+     * Xác nhận giao dịch (Commit)
      */
+    public function commit() {
+        if (!$this->connection->commit()) {
+            $this->lastError = $this->connection->error;
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Hoàn tác giao dịch (Rollback)
+     */
+    public function rollback() {
+        if (!$this->connection->rollback()) {
+            $this->lastError = $this->connection->error;
+            return false;
+        }
+        return true;
+    }
     public function close() {
         if ($this->connection) {
             $this->connection->close();
         }
-    }
-    
-    /**
-     * Thực hiện truy vấn tùy chỉnh
-     */
-    public function query($sql, $params = []) {
-        $stmt = $this->connection->prepare($sql);
-        
-        if (!$stmt) {
-            $this->lastError = $this->connection->error;
-            return false;
-        }
-        
-        if (!empty($params)) {
-            $types = $this->getParamTypes($params);
-            $stmt->bind_param($types, ...$params);
-        }
-        
-        return $stmt->execute();
     }
 }
 ?>

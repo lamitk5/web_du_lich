@@ -1,9 +1,17 @@
 <?php
 /**
- * Quản lý Đặt chỗ
+ * Quản lý Đặt chỗ (Admin)
  */
 
 require_once '../config/config.php';
+if (!function_exists('requireAdmin')) {
+    function requireAdmin() {
+        if (!Auth::isLoggedIn() || !Auth::isAdmin()) {
+            header('Location: ../login.php'); 
+            exit;
+        }
+    }
+}
 requireAdmin();
 
 // --- XỬ LÝ HÀNH ĐỘNG ---
@@ -18,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (db()->update('bookings', ['status' => $status], 'id = ?', [$id])) {
             setFlashMessage('success', 'Cập nhật trạng thái thành công');
         } else {
-            setFlashMessage('error', 'Có lỗi xảy ra');
+            setFlashMessage('error', 'Có lỗi xảy ra khi cập nhật');
         }
         redirect('qly_booking.php');
     }
@@ -61,18 +69,18 @@ if ($statusFilter) {
 }
 
 $totalBookings = db()->count('bookings b INNER JOIN users u ON b.user_id = u.id', $where, $params);
-$pagination = getPagination($page, $totalBookings);
+$pagination = getPagination($page, $totalBookings,50);
 
 $bookings = db()->select("
     SELECT b.*, u.full_name, u.email, u.phone
     FROM bookings b
-    INNER JOIN users u ON b.user_id = u.id
+    LEFT JOIN users u ON b.user_id = u.id  
     WHERE $where
     ORDER BY b.created_at DESC
     LIMIT {$pagination['items_per_page']} OFFSET {$pagination['offset']}
 ", $params);
 
-// Thống kê nhanh (để hiển thị cards phía trên nếu cần, hoặc giữ logic cũ)
+// Thống kê nhanh
 $stats = db()->selectOne("
     SELECT 
         COUNT(*) as total,
@@ -108,7 +116,6 @@ $flash = getFlashMessage();
     </script>
     <style>
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-        .active-nav { background-color: rgba(13, 166, 242, 0.1); color: #0da6f2; }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
@@ -116,15 +123,10 @@ $flash = getFlashMessage();
     <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 overflow-y-auto">
-        <header class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/80 px-6 py-3 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
-            <h2 class="text-lg font-bold">Quản lý Đặt chỗ</h2>
-            <div class="flex gap-2">
-                <button class="flex size-9 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
-                    <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">notifications</span>
-                </button>
-            </div>
-        </header>
-
+    <?php 
+    $pageTitle = 'Quản lý Đặt chỗ';
+    include 'components/header.php'; 
+    ?>
         <div class="p-6 md:p-10">
             <?php if ($flash): ?>
             <div class="mb-6 flex items-center gap-2 rounded-lg border px-4 py-3 <?php echo $flash['type'] === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'; ?>">
@@ -136,7 +138,7 @@ $flash = getFlashMessage();
             <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
                     <h1 class="text-3xl font-black tracking-tight">Danh sách Đặt chỗ</h1>
-                    <p class="text-gray-500 text-sm mt-1">Theo dõi và xử lý đơn hàng của khách hàng.</p>
+                    <p class="text-gray-500 text-sm mt-1">Quản lý và cập nhật trạng thái đơn hàng.</p>
                 </div>
             </div>
 
@@ -220,8 +222,12 @@ $flash = getFlashMessage();
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td class="px-6 py-4 font-bold text-primary"><?php echo htmlspecialchars($b['booking_code']); ?></td>
                             <td class="px-6 py-4">
-                                <div class="font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars($b['full_name']); ?></div>
-                                <div class="text-xs text-gray-500"><?php echo htmlspecialchars($b['email']); ?></div>
+                                <div class="font-medium text-gray-900 dark:text-white">
+                                <?php echo htmlspecialchars($b['full_name'] ?? 'Tài khoản đã xóa'); ?>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                <?php echo htmlspecialchars($b['email'] ?? 'Không có dữ liệu'); ?>
+                                </div>
                             </td>
                             <td class="px-6 py-4">
                                 <span class="flex items-center gap-2">
@@ -243,10 +249,9 @@ $flash = getFlashMessage();
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="booking_detail.php?id=<?php echo $b['id']; ?>" class="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-primary dark:hover:bg-gray-800" title="Xem chi tiết">
-                                        <span class="material-symbols-outlined text-[20px]">visibility</span>
-                                    </a>
-                                    
+                                    <button onclick="openStatusModal(<?php echo $b['id']; ?>, '<?php echo $b['status']; ?>')" class="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-primary dark:hover:bg-gray-800" title="Cập nhật trạng thái">
+                                        <span class="material-symbols-outlined text-[20px]">edit</span>
+                                    </button>             
                                     <form method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa đơn này?');" class="inline">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="id" value="<?php echo $b['id']; ?>">
@@ -282,5 +287,53 @@ $flash = getFlashMessage();
         </div>
     </main>
 </div>
+
+<div id="statusModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity backdrop-blur-sm">
+    <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-xl shadow-2xl transform transition-all">
+        <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+            <h3 class="text-lg font-bold">Cập nhật trạng thái</h3>
+            <button onclick="closeStatusModal()" class="text-gray-400 hover:text-gray-600"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <form method="POST" class="p-5">
+            <input type="hidden" name="action" value="update_status">
+            <input type="hidden" name="id" id="status_booking_id">
+            
+            <div class="mb-5">
+                <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Trạng thái đơn hàng</label>
+                <select name="status" id="status_select" class="w-full rounded-lg border-gray-300 text-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600">
+                    <option value="pending">Chờ xử lý (Pending)</option>
+                    <option value="confirmed">Đã xác nhận (Confirmed)</option>
+                    <option value="completed">Hoàn thành (Completed)</option>
+                    <option value="cancelled">Đã hủy (Cancelled)</option>
+                </select>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeStatusModal()" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">Hủy</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 text-sm font-bold shadow-md">Cập nhật</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openStatusModal(id, currentStatus) {
+        document.getElementById('statusModal').classList.remove('hidden');
+        document.getElementById('status_booking_id').value = id;
+        document.getElementById('status_select').value = currentStatus;
+    }
+
+    function closeStatusModal() {
+        document.getElementById('statusModal').classList.add('hidden');
+    }
+    
+    // Đóng khi click ra vùng tối
+    window.onclick = function(e) {
+        const modal = document.getElementById('statusModal');
+        if (e.target === modal) {
+            closeStatusModal();
+        }
+    }
+</script>
 </body>
 </html>

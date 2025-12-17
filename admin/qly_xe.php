@@ -1,8 +1,21 @@
 <?php
 /**
- * Quản lý Xe
+ * Quản lý Xe - Đã cập nhật thêm cột Địa chỉ
  */
 require_once '../config/config.php';
+if (!function_exists('requireAdmin')) {
+    /**
+     * Kiểm tra người dùng đã đăng nhập và có quyền Admin chưa.
+     * Nếu không, chuyển hướng về trang đăng nhập hoặc trang báo lỗi.
+     */
+    function requireAdmin() {
+        if (!Auth::isLoggedIn() || !Auth::isAdmin()) {
+            // Chuyển hướng về trang đăng nhập/trang chủ người dùng
+            header('Location: ../login.php'); 
+            exit;
+        }
+    }
+}
 requireAdmin();
 
 // --- XỬ LÝ THÊM / SỬA / XÓA ---
@@ -15,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'brand' => cleanInput($_POST['brand']),
         'type' => cleanInput($_POST['type']),
         'license_plate' => cleanInput($_POST['license_plate']),
+        'dia_chi' => cleanInput($_POST['dia_chi']),
         'seats' => (int)$_POST['seats'],
         'price_per_day' => (float)$_POST['price_per_day'],
         'provider' => cleanInput($_POST['provider']),
@@ -61,9 +75,10 @@ $where = "1=1";
 $params = [];
 
 if ($search) {
-    $where .= " AND (name LIKE ? OR license_plate LIKE ? OR brand LIKE ?)";
+//Cho phép tìm kiếm theo địa chỉ
+    $where .= " AND (name LIKE ? OR license_plate LIKE ? OR brand LIKE ? OR dia_chi LIKE ?)";
     $term = "%$search%";
-    $params = array_merge($params, [$term, $term, $term]);
+    $params = array_merge($params, [$term, $term, $term, $term]);
 }
 if ($typeFilter) {
     $where .= " AND type = ?";
@@ -112,23 +127,18 @@ $flash = getFlashMessage();
     </script>
     <style>
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-        .active-nav { background-color: rgba(13, 166, 242, 0.1); color: #0da6f2; }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
 <div class="flex min-h-screen w-full">
-<?php include 'components/sidebar.php'; ?>
+    <?php include 'components/sidebar.php'; ?>
 
     <main class="flex-1 overflow-y-auto">
-        <header class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/80 px-6 py-3 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
-            <h2 class="text-lg font-bold">Quản lý Dịch vụ Xe</h2>
-            <div class="flex gap-2">
-                <button class="flex size-9 items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
-                    <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">notifications</span>
-                </button>
-            </div>
-        </header>
-
+    <?php 
+    // KHAI BÁO TIÊU ĐỀ TRƯỚC KHI INCLUDE HEADER
+    $pageTitle = 'Quản lý Dịch vụ Xe';
+    include 'components/header.php'; 
+    ?>
         <div class="p-6 md:p-10">
             <?php if ($flash): ?>
             <div class="mb-6 flex items-center gap-2 rounded-lg border px-4 py-3 <?php echo $flash['type'] === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'; ?>">
@@ -148,7 +158,7 @@ $flash = getFlashMessage();
             <form method="GET" class="mb-6 flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50 md:flex-row">
                 <div class="flex-1 relative">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                    <input name="search" value="<?php echo htmlspecialchars($search); ?>" class="w-full rounded-lg border-gray-300 pl-10 text-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800" placeholder="Tìm tên xe, biển số, hãng..."/>
+                    <input name="search" value="<?php echo htmlspecialchars($search); ?>" class="w-full rounded-lg border-gray-300 pl-10 text-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800" placeholder="Tìm tên xe, địa chỉ, biển số..."/>
                 </div>
                 <div class="flex gap-3">
                     <select name="type" class="rounded-lg border-gray-300 text-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800" onchange="this.form.submit()">
@@ -157,12 +167,6 @@ $flash = getFlashMessage();
                         <option value="suv" <?php echo $typeFilter === 'suv' ? 'selected' : ''; ?>>SUV (5-7 chỗ)</option>
                         <option value="minivan" <?php echo $typeFilter === 'minivan' ? 'selected' : ''; ?>>Minivan</option>
                         <option value="van" <?php echo $typeFilter === 'van' ? 'selected' : ''; ?>>Van (16 chỗ)</option>
-                    </select>
-                    <select name="status" class="rounded-lg border-gray-300 text-sm focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-800" onchange="this.form.submit()">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="available" <?php echo $statusFilter === 'available' ? 'selected' : ''; ?>>Sẵn có</option>
-                        <option value="rented" <?php echo $statusFilter === 'rented' ? 'selected' : ''; ?>>Đang thuê</option>
-                        <option value="maintenance" <?php echo $statusFilter === 'maintenance' ? 'selected' : ''; ?>>Bảo trì</option>
                     </select>
                     <button type="submit" class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300">Tìm</button>
                 </div>
@@ -173,8 +177,7 @@ $flash = getFlashMessage();
                     <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                         <tr>
                             <th class="px-6 py-4 font-medium">Tên xe</th>
-                            <th class="px-6 py-4 font-medium">Nhà cung cấp</th>
-                            <th class="px-6 py-4 font-medium">Biển số</th>
+                            <th class="px-6 py-4 font-medium">Địa chỉ</th> <th class="px-6 py-4 font-medium">Biển số</th>
                             <th class="px-6 py-4 font-medium">Loại xe</th>
                             <th class="px-6 py-4 font-medium">Giá (ngày)</th>
                             <th class="px-6 py-4 font-medium">Trạng thái</th>
@@ -193,7 +196,12 @@ $flash = getFlashMessage();
                         ?>
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td class="px-6 py-4 font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars($v['name']); ?></td>
-                            <td class="px-6 py-4 text-gray-500"><?php echo htmlspecialchars($v['provider'] ?? 'N/A'); ?></td>
+                            <td class="px-6 py-4 text-gray-500">
+                                <span class="flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px] text-gray-400">location_on</span>
+                                    <?php echo htmlspecialchars($v['dia_chi'] ?? 'Chưa cập nhật'); ?>
+                                </span>
+                            </td>
                             <td class="px-6 py-4 font-mono text-gray-500"><?php echo htmlspecialchars($v['license_plate']); ?></td>
                             <td class="px-6 py-4 uppercase"><?php echo htmlspecialchars($v['type']); ?></td>
                             <td class="px-6 py-4 font-semibold text-primary"><?php echo formatCurrency($v['price_per_day']); ?></td>
@@ -221,19 +229,7 @@ $flash = getFlashMessage();
                     </tbody>
                 </table>
             </div>
-            
-            <div class="mt-4 flex items-center justify-between border-t border-gray-200 px-2 py-4 dark:border-gray-700">
-                <span class="text-sm text-gray-500">Hiển thị <?php echo $totalItems > 0 ? min($pagination['offset'] + 1, $totalItems) : 0; ?>-<?php echo min($pagination['offset'] + $pagination['items_per_page'], $totalItems); ?> trên <?php echo $totalItems; ?></span>
-                <div class="flex gap-2">
-                    <?php if ($pagination['has_prev']): ?>
-                    <a href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($search); ?>" class="rounded border px-3 py-1 hover:bg-gray-50 text-sm">Trước</a>
-                    <?php endif; ?>
-                    <?php if ($pagination['has_next']): ?>
-                    <a href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($search); ?>" class="rounded border px-3 py-1 hover:bg-gray-50 text-sm">Sau</a>
-                    <?php endif; ?>
-                </div>
             </div>
-        </div>
     </main>
 </div>
 
@@ -249,6 +245,12 @@ $flash = getFlashMessage();
                 <div class="col-span-2"><label class="block mb-1 text-sm font-medium">Tên xe</label><input required name="name" class="w-full rounded-lg border-gray-300 dark:bg-gray-800" placeholder="VinFast VF8"/></div>
                 <div><label class="block mb-1 text-sm font-medium">Hãng xe</label><input required name="brand" class="w-full rounded-lg border-gray-300 dark:bg-gray-800" placeholder="VinFast"/></div>
                 <div><label class="block mb-1 text-sm font-medium">Biển số</label><input required name="license_plate" class="w-full rounded-lg border-gray-300 dark:bg-gray-800" placeholder="30A-123.45"/></div>
+                
+                <div class="col-span-2">
+                    <label class="block mb-1 text-sm font-medium">Địa chỉ (Vị trí hiện tại)</label>
+                    <input required name="dia_chi" class="w-full rounded-lg border-gray-300 dark:bg-gray-800" placeholder="Hà Nội, Đà Nẵng, Sân bay Tân Sơn Nhất..."/>
+                </div>
+
                 <div><label class="block mb-1 text-sm font-medium">Loại xe</label>
                     <select name="type" class="w-full rounded-lg border-gray-300 dark:bg-gray-800">
                         <option value="sedan">Sedan (4 chỗ)</option>
@@ -282,6 +284,12 @@ $flash = getFlashMessage();
                 <div class="col-span-2"><label class="block mb-1 text-sm font-medium">Tên xe</label><input required id="edit_name" name="name" class="w-full rounded-lg border-gray-300 dark:bg-gray-800"/></div>
                 <div><label class="block mb-1 text-sm font-medium">Hãng xe</label><input required id="edit_brand" name="brand" class="w-full rounded-lg border-gray-300 dark:bg-gray-800"/></div>
                 <div><label class="block mb-1 text-sm font-medium">Biển số</label><input required id="edit_license_plate" name="license_plate" class="w-full rounded-lg border-gray-300 dark:bg-gray-800"/></div>
+                
+                <div class="col-span-2">
+                    <label class="block mb-1 text-sm font-medium">Địa chỉ</label>
+                    <input required id="edit_dia_chi" name="dia_chi" class="w-full rounded-lg border-gray-300 dark:bg-gray-800"/>
+                </div>
+
                 <div><label class="block mb-1 text-sm font-medium">Loại xe</label>
                     <select id="edit_type" name="type" class="w-full rounded-lg border-gray-300 dark:bg-gray-800">
                         <option value="sedan">Sedan</option>
@@ -319,6 +327,7 @@ $flash = getFlashMessage();
         document.getElementById('edit_name').value = data.name;
         document.getElementById('edit_brand').value = data.brand;
         document.getElementById('edit_license_plate').value = data.license_plate;
+        document.getElementById('edit_dia_chi').value = data.dia_chi; // [MỚI] Điền địa chỉ cũ
         document.getElementById('edit_type').value = data.type;
         document.getElementById('edit_seats').value = data.seats;
         document.getElementById('edit_price').value = data.price_per_day;

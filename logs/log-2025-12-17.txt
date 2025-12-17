@@ -1,0 +1,18 @@
+[00:06:44] [SUCCESS] User admin@travel.com logged out
+[00:17:33] [SUCCESS] User minhanh.le@email.com logged in from ::1
+[00:23:10] [SUCCESS] New flight booking created: FL0905A483 {"user_id":2,"flight_id":5}
+[00:23:38] [SUCCESS] New flight booking created: FL2C9ED668 {"user_id":2,"flight_id":5}
+[00:24:13] [SUCCESS] New flight booking created: FL56181652 {"user_id":2,"flight_id":6}
+[00:24:53] [SUCCESS] New flight booking created: FLB46C7366 {"user_id":2,"flight_id":6}
+[00:25:03] [SUCCESS] New flight booking created: FL90637221 {"user_id":2,"flight_id":5}
+[00:25:29] [SUCCESS] New flight booking created: FL4D059432 {"user_id":2,"flight_id":6}
+[00:30:32] [SUCCESS] New flight booking created: FLBC8D2582 {"user_id":2,"flight_id":6}
+[00:46:40] [SUCCESS] New homestay booking confirmed: HS70844584 {"user_id":2,"homestay_id":16,"amount":1365000}
+[00:46:56] [SUCCESS] New homestay booking confirmed: HS2CF26934 {"user_id":2,"homestay_id":16,"amount":3412500}
+[00:55:07] [SUCCESS] New homestay booking confirmed: HS437F5747 {"user_id":2,"homestay_id":17,"amount":2100000}
+[01:02:48] [SUCCESS] User minhanh.le@email.com logged out
+[01:10:09] [SUCCESS] User minhanh.le@email.com logged in from ::1
+[01:15:55] [SUCCESS] New flight booking created: FL9F887870 {"user_id":2,"flight_id":6}
+[01:16:19] [SUCCESS] New homestay booking confirmed: HS95FF6223 {"user_id":2,"homestay_id":22,"amount":1995000}
+[01:21:58] [SUCCESS] User minhanh.le@email.com logged out
+[01:22:02] [SUCCESS] User admin@travel.com logged in from ::1

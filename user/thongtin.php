@@ -1,292 +1,390 @@
-<!DOCTYPE html>
-<html class="light" lang="vi"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Quản lý đặt chỗ của tôi - TravelViet</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#0da6f2",
-            "background-light": "#f5f7f8",
-            "background-dark": "#101c22",
-            "card-light": "#ffffff",
-            "card-dark": "#1a2a34",
-            "text-light-primary": "#0d171c",
-            "text-dark-primary": "#f5f7f8",
-            "text-light-secondary": "#49819c",
-            "text-dark-secondary": "#a0b8c4",
-            "border-light": "#e7eff4",
-            "border-dark": "#2c3e4a",
-          },
-          fontFamily: {
-            "display": ["Plus Jakarta Sans", "Noto Sans", "sans-serif"]
-          },
-          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
-        },
-      },
+<?php
+/**
+ * users/thongtin.php
+ * Trang quản lý thông tin cá nhân và lịch sử đặt chỗ
+ **/
+
+require_once '../config/config.php';
+requireLogin(); // Bắt buộc đăng nhập
+
+$currentUser = getCurrentUser();
+$pageTitle = "Quản lý đặt chỗ - " . SITE_NAME;
+
+// --- 1. XỬ LÝ CẬP NHẬT THÔNG TIN CÁ NHÂN ---
+$updateMsg = '';
+$updateType = ''; // success hoặc error
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
+    $fullName = trim($_POST['full_name']);
+    $phone = trim($_POST['phone']);
+    $userId = $currentUser['id'];
+
+    // Xử lý upload Avatar
+    $avatarPath = $currentUser['avatar']; // Mặc định giữ ảnh cũ
+    
+    if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === 0) {
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $ext = strtolower(pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION));
+        
+        if (in_array($ext, $allowed)) {
+            $uploadDir = '../uploads/avatars/';
+            if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+            
+            $fileName = 'avatar_' . $userId . '_' . time() . '.' . $ext;
+            $targetFile = $uploadDir . $fileName;
+            
+            if (move_uploaded_file($_FILES['avatar']['tmp_name'], $targetFile)) {
+                $avatarPath = 'uploads/avatars/' . $fileName; // Lưu đường dẫn tương đối vào DB
+            }
+        } else {
+            $updateMsg = "Chỉ chấp nhận file ảnh (JPG, PNG, GIF)";
+            $updateType = 'error';
+        }
     }
-  </script>
-<style>
-    .material-symbols-outlined {
-      font-variation-settings:
-      'FILL' 0,
-      'wght' 400,
-      'GRAD' 0,
-      'opsz' 24
+
+    // Cập nhật vào Database
+    if (empty($updateMsg)) {
+        $updateData = [
+            'full_name' => $fullName,
+            'phone' => $phone,
+            'avatar' => $avatarPath
+        ];
+
+        // Gọi hàm update($table, $data, $condition, $params)
+        if (db()->update('users', $updateData, 'id = ?', [$userId])) {
+            $updateMsg = "Cập nhật hồ sơ thành công!";
+            $updateType = 'success';
+            
+            // Cập nhật lại session user để hiển thị ngay lập tức
+            $_SESSION['user_name'] = $fullName;
+            $currentUser = db()->selectOne("SELECT * FROM users WHERE id = ?", [$userId]);
+        } else {
+            // Lỗi hệ thống: Hiển thị lỗi SQL
+            $updateMsg = "Lỗi hệ thống: " . db()->getLastError();
+            $updateType = 'error';
+        }
     }
-  </style>
-</head>
-<body class="font-display bg-background-light dark:bg-background-dark">
-<div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
-<div class="layout-container flex h-full grow flex-col">
-<header class="w-full bg-card-light dark:bg-card-dark sticky top-0 z-10 shadow-sm">
-<div class="container mx-auto px-4">
-<div class="flex items-center justify-between whitespace-nowrap border-b border-solid border-border-light dark:border-border-dark py-3">
-<div class="flex items-center gap-4 text-text-light-primary dark:text-text-dark-primary">
-<div class="text-primary">
-<svg class="size-6" fill="currentColor" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-<path d="M13.8261 17.4264C16.7203 18.1174 20.2244 18.5217 24 18.5217C27.7756 18.5217 31.2797 18.1174 34.1739 17.4264C36.9144 16.7722 39.9967 15.2331 41.3563 14.1648L24.8486 40.6391C24.4571 41.267 23.5429 41.267 23.1514 40.6391L6.64374 14.1648C8.00331 15.2331 11.0856 16.7722 13.8261 17.4264Z"></path>
-<path clip-rule="evenodd" d="M39.998 12.236C39.9944 12.2537 39.9875 12.2845 39.9748 12.3294C39.9436 12.4399 39.8949 12.5741 39.8346 12.7175C39.8168 12.7597 39.7989 12.8007 39.7813 12.8398C38.5103 13.7113 35.9788 14.9393 33.7095 15.4811C30.9875 16.131 27.6413 16.5217 24 16.5217C20.3587 16.5217 17.0125 16.131 14.2905 15.4811C12.0012 14.9346 9.44505 13.6897 8.18538 12.8168C8.17384 12.7925 8.16216 12.767 8.15052 12.7408C8.09919 12.6249 8.05721 12.5114 8.02977 12.411C8.00356 12.3152 8.00039 12.2667 8.00004 12.2612C8.00004 12.261 8 12.2607 8.00004 12.2612C8.00004 12.2359 8.0104 11.9233 8.68485 11.3686C9.34546 10.8254 10.4222 10.2469 11.9291 9.72276C14.9242 8.68098 19.1919 8 24 8C28.8081 8 33.0758 8.68098 36.0709 9.72276C37.5778 10.2469 38.6545 10.8254 39.3151 11.3686C39.9006 11.8501 39.9857 12.1489 39.998 12.236ZM4.95178 15.2312L21.4543 41.6973C22.6288 43.5809 25.3712 43.5809 26.5457 41.6973L43.0534 15.223C43.0709 15.1948 43.0878 15.1662 43.104 15.1371L41.3563 14.1648C43.104 15.1371 43.1038 15.1374 43.104 15.1371L43.1051 15.135L43.1065 15.1325L43.1101 15.1261L43.1199 15.1082C43.1276 15.094 43.1377 15.0754 43.1497 15.0527C43.1738 15.0075 43.2062 14.9455 43.244 14.8701C43.319 14.7208 43.4196 14.511 43.5217 14.2683C43.6901 13.8679 44 13.0689 44 12.2609C44 10.5573 43.003 9.22254 41.8558 8.2791C40.6947 7.32427 39.1354 6.55361 37.385 5.94477C33.8654 4.72057 29.133 4 24 4C18.867 4 14.1346 4.72057 10.615 5.94478C8.86463 6.55361 7.30529 7.32428 6.14419 8.27911C4.99695 9.22255 3.99999 10.5573 3.99999 12.2609C3.99999 13.1275 4.29264 13.9078 4.49321 14.3607C4.60375 14.6102 4.71348 14.8196 4.79687 14.9689C4.83898 15.0444 4.87547 15.1065 4.9035 15.1529C4.91754 15.1762 4.92954 15.1957 4.93916 15.2111L4.94662 15.223L4.95178 15.2312ZM35.9868 18.996L24 38.22L12.0131 18.996C12.4661 19.1391 12.9179 19.2658 13.3617 19.3718C16.4281 20.1039 20.0901 20.5217 24 20.5217C27.9099 20.5217 31.5719 20.1039 34.6383 19.3718C35.082 19.2658 35.5339 19.1391 35.9868 18.996Z" fill-rule="evenodd"></path>
-</svg>
-</div>
-<h2 class="text-text-light-primary dark:text-text-dark-primary text-lg font-bold leading-tight tracking-[-0.015em]">TravelViet</h2>
-</div>
-<div class="flex flex-1 justify-center">
-<div class="flex items-center gap-9">
-<a class="text-text-light-secondary dark:text-text-dark-secondary hover:text-primary dark:hover:text-primary text-sm font-medium leading-normal" href="#">Trang chủ</a>
-<a class="text-text-light-secondary dark:text-text-dark-secondary hover:text-primary dark:hover:text-primary text-sm font-medium leading-normal" href="#">Ưu đãi</a>
-<a class="text-text-light-primary dark:text-text-dark-primary text-sm font-bold leading-normal" href="#">Quản lý đặt chỗ</a>
-<a class="text-text-light-secondary dark:text-text-dark-secondary hover:text-primary dark:hover:text-primary text-sm font-medium leading-normal" href="#">Liên hệ</a>
-</div>
-</div>
-<div class="flex gap-4 items-center">
-<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-transparent text-text-light-primary dark:text-text-dark-primary gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
-<span class="material-symbols-outlined text-2xl text-text-light-secondary dark:text-text-dark-secondary">notifications</span>
-</button>
-<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD3xB9vRPWL98sXoZK0o7k6RF_yNvfbTNuq8M1gP1bXL31rSbN0ejCUWCE0tlhpa7OssYniFHspJyJnoaJC6jsrgbVGj0m_ka7OByv82CyXxELg58oSk1TOSSOwluc5unt8uoAHQ4uPn-FPLO5JDUiG28mVJCCjkEar0Tdc__puNNU07pswABsN99v6qSQ7umMw7hGD818SgcZy0H-D36kP3y8P6v9MMgvFVgFLjeRykoL-9g8by7OmJUtHMTM0fnMJiDRFzb7L48Lo");'></div>
-</div>
-</div>
-</div>
-</header>
-<main class="flex-1">
-<div class="container mx-auto px-4 py-8">
-<div class="layout-content-container flex flex-col flex-1 gap-6">
-<div class="flex flex-wrap justify-between gap-4 items-center">
-<div class="flex min-w-72 flex-col gap-2">
-<p class="text-text-light-primary dark:text-text-dark-primary text-4xl font-black leading-tight tracking-[-0.033em]">Quản lý đặt chỗ của tôi</p>
-<p class="text-text-light-secondary dark:text-text-dark-secondary text-base font-normal leading-normal">Xem lại, chỉnh sửa hoặc hủy các đặt chỗ vé máy bay, khách sạn và xe của bạn.</p>
-</div>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-blue-600 dark:hover:bg-blue-500 transition-colors">
-<span class="truncate">Đặt chuyến đi mới</span>
-</button>
-</div>
-<div class="pb-3">
-<div class="flex border-b border-border-light dark:border-border-dark gap-8">
-<a class="flex flex-col items-center justify-center border-b-[3px] border-b-primary text-text-light-primary dark:text-text-dark-primary pb-[13px] pt-4" href="#">
-<p class="text-sm font-bold leading-normal tracking-[0.015em]">Tất cả</p>
-</a>
-<a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-text-light-secondary dark:text-text-dark-secondary pb-[13px] pt-4 hover:text-text-light-primary dark:hover:text-text-dark-primary" href="#">
-<p class="text-sm font-bold leading-normal tracking-[0.015em]">Chuyến bay</p>
-</a>
-<a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-text-light-secondary dark:text-text-dark-secondary pb-[13px] pt-4 hover:text-text-light-primary dark:hover:text-text-dark-primary" href="#">
-<p class="text-sm font-bold leading-normal tracking-[0.015em]">Khách sạn</p>
-</a>
-<a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-text-light-secondary dark:text-text-dark-secondary pb-[13px] pt-4 hover:text-text-light-primary dark:hover:text-text-dark-primary" href="#">
-<p class="text-sm font-bold leading-normal tracking-[0.015em]">Xe</p>
-</a>
-</div>
-</div>
-<div class="py-3">
-<label class="flex flex-col min-w-40 h-12 w-full">
-<div class="flex w-full flex-1 items-stretch rounded-xl h-full">
-<div class="text-text-light-secondary dark:text-text-dark-secondary flex border-none bg-card-light dark:bg-card-dark items-center justify-center pl-4 rounded-l-xl border-r-0">
-<span class="material-symbols-outlined text-2xl">search</span>
-</div>
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-text-light-primary dark:text-text-dark-primary focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark h-full placeholder:text-text-light-secondary dark:placeholder:text-text-dark-secondary px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" placeholder="Tìm kiếm theo mã đặt chỗ hoặc tên hành khách" value=""/>
-</div>
-</label>
-</div>
-<div class="flex flex-col gap-6">
-<div class="overflow-hidden rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark">
-<div class="p-6">
-<div class="flex flex-wrap items-start justify-between gap-6">
-<div class="flex items-center gap-4">
-<div class="h-16 w-16 flex-shrink-0">
-<div class="h-full w-full rounded-lg bg-cover bg-center bg-no-repeat" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD2he1vd_c4s7GGGgfQCECwUhcKfpUp0FNFRA9G3iMJpLllO24T-pLh77P0aC679p4Fe7dY_EmFo6q8gI4ANmlS13PMh7wJDfMcANwZWn2LWy2IoW8BnJp6y8Nf--oubxrqBs9inBzHuoyxVwBgj39rw4whaLmSnbJVCDqYppSbLz6--Xcw6MHVsILzcFMuYlxqsGWVaq-9666tYHoBrAojRh1_9pfD2JQtl7TBU-gB4jPWPiyFmgE5-nKRNSVmU7VPHBJ04MOKkeWW");'></div>
-</div>
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-base text-text-light-secondary dark:text-text-dark-secondary">flight</span>
-<p class="text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">Chuyến bay</p>
-</div>
-<h3 class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">Chuyến bay đến Singapore</h3>
-<p class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Mã đặt chỗ: <span class="font-medium text-text-light-primary dark:text-text-dark-primary">VJ5892</span></p>
-</div>
-</div>
-<div class="flex flex-wrap items-center gap-6">
-<div class="flex flex-col items-start gap-1 sm:items-end">
-<span class="inline-flex rounded-full bg-green-100 dark:bg-green-900 px-3 py-1 text-xs font-semibold leading-5 text-green-700 dark:text-green-300">Đã xác nhận &amp; Thanh toán</span>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Tổng cộng: <span class="text-base font-bold text-text-light-primary dark:text-text-dark-primary">12.500.000đ</span></div>
-</div>
-<div class="flex items-center gap-2">
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-9 px-4 bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary text-sm font-medium leading-normal border border-border-light dark:border-border-dark transition-colors hover:bg-border-light dark:hover:bg-border-dark">
-<span class="material-symbols-outlined text-xl">edit</span><span class="truncate">Chỉnh sửa</span>
-</button>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-9 px-4 bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary text-sm font-medium leading-normal border border-border-light dark:border-border-dark transition-colors hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 hover:border-red-200 dark:hover:border-red-900/30">
-<span class="material-symbols-outlined text-xl">cancel</span><span class="truncate">Hủy</span>
-</button>
-</div>
-</div>
-</div>
-<div class="mt-6 border-t border-border-light dark:border-border-dark pt-6">
-<div class="flex flex-col gap-4">
-<div class="flex items-center gap-6">
-<div class="flex flex-col items-center">
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">SGN</div>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">TP. HCM</div>
-</div>
-<div class="flex flex-1 flex-col items-center">
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Vietjet Air</div>
-<div class="my-1 h-px w-full bg-border-light dark:bg-border-dark"></div>
-<div class="text-xs text-text-light-secondary dark:text-text-dark-secondary">25/12/2024</div>
-</div>
-<div class="flex flex-col items-center">
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">SIN</div>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Singapore</div>
-</div>
-</div>
-<div class="flex items-center gap-6">
-<div class="flex flex-col items-center">
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">SIN</div>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Singapore</div>
-</div>
-<div class="flex flex-1 flex-col items-center">
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Vietjet Air</div>
-<div class="my-1 h-px w-full bg-border-light dark:bg-border-dark"></div>
-<div class="text-xs text-text-light-secondary dark:text-text-dark-secondary">01/01/2025</div>
-</div>
-<div class="flex flex-col items-center">
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">SGN</div>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">TP. HCM</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="overflow-hidden rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark">
-<div class="p-6">
-<div class="flex flex-wrap items-start justify-between gap-6">
-<div class="flex items-center gap-4">
-<div class="h-16 w-16 flex-shrink-0">
-<div class="h-full w-full rounded-lg bg-cover bg-center bg-no-repeat" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAxvwAVT8yOn_29naZi-dP7q3ul_VSl560K-hEfY6smILGLQTTcir2JJL4OyZGZ97Pht2pDyp33U6gQJBy5v9yVUOWqjsIwGS7-eC4PLrXFC7eMWVWNSQJ6WQgenkN3lSrFP5IWk0E0QEWCJDY0F-L30y8Ti8seARucBY2uwiccdFlFgQMhn3YLFW-cPaw-8mKcxbj6XfBG9QnJ5bV2g9lLx6jA_IY0o_xP_ti3lZb-XoiyGVEKYYhxjzEUoAJl7Je-3YFyQDQ8NcXW");'></div>
-</div>
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-base text-text-light-secondary dark:text-text-dark-secondary">hotel</span>
-<p class="text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">Khách sạn</p>
-</div>
-<h3 class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">Khách sạn Marina Bay Sands</h3>
-<p class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Mã đặt chỗ: <span class="font-medium text-text-light-primary dark:text-text-dark-primary">HS9214</span></p>
-</div>
-</div>
-<div class="flex flex-wrap items-center gap-6">
-<div class="flex flex-col items-start gap-1 sm:items-end">
-<span class="inline-flex rounded-full bg-orange-100 dark:bg-orange-900 px-3 py-1 text-xs font-semibold leading-5 text-orange-700 dark:text-orange-300">Chờ thanh toán</span>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Hạn chót: 24/11/2024</div>
-</div>
-<div class="flex items-center gap-2">
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-9 px-4 bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary text-sm font-medium leading-normal border border-border-light dark:border-border-dark transition-colors hover:bg-red-100 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 hover:border-red-200 dark:hover:border-red-900/30">
-<span class="material-symbols-outlined text-xl">cancel</span><span class="truncate">Hủy</span>
-</button>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-9 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors hover:bg-blue-600 dark:hover:bg-blue-500">
-<span class="material-symbols-outlined text-xl">payment</span><span class="truncate">Thanh toán</span>
-</button>
-</div>
-</div>
-</div>
-<div class="mt-6 border-t border-border-light dark:border-border-dark pt-6">
-<div class="flex items-center gap-4">
-<div class="flex flex-col">
-<div class="text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">Nhận phòng</div>
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">25/12/2024</div>
-</div>
-<span class="material-symbols-outlined text-2xl text-text-light-secondary dark:text-text-dark-secondary">arrow_forward</span>
-<div class="flex flex-col">
-<div class="text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">Trả phòng</div>
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">28/12/2024</div>
-</div>
-<div class="ml-auto flex items-center gap-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
-<span class="material-symbols-outlined text-xl">schedule</span>
-<span>3 đêm</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="overflow-hidden rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark">
-<div class="p-6">
-<div class="flex flex-wrap items-start justify-between gap-6">
-<div class="flex items-center gap-4">
-<div class="h-16 w-16 flex-shrink-0">
-<div class="h-full w-full rounded-lg bg-cover bg-center bg-no-repeat" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDmsYzOvZ3pcNYiFWt5L7uw82tM1Id5FkOYGb5UQ5jBXFjQPy6-ADeKJTD08akoq8TEquuL9umu_7VFlrwfbCRTxyEDGwN2c9IbRE8xlFh4zxJfIYscJqnEXdjDPnGCbx74fS9KkrxItUDkZ-QxZlhwpcWCzOeGjPHsIxlcDrsA3Alu-pXCWX7zqvJKC0jp2FxFQTE1hjKU3IiAYUAn2dIi4IDTrFqUZACtDZcTVfN3xpA_c8Dp-9__ay_sKFM8XaJ3zz6Iz2oL-dV9");'></div>
-</div>
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-base text-text-light-secondary dark:text-text-dark-secondary">flight</span>
-<p class="text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">Chuyến bay</p>
-</div>
-<h3 class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">Chuyến bay đến Đà Nẵng</h3>
-<p class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Mã đặt chỗ: <span class="font-medium text-text-light-primary dark:text-text-dark-primary">VN8841</span></p>
-</div>
-</div>
-<div class="flex flex-wrap items-center gap-6">
-<div class="flex flex-col items-start gap-1 sm:items-end">
-<span class="inline-flex rounded-full bg-red-100 dark:bg-red-900 px-3 py-1 text-xs font-semibold leading-5 text-red-700 dark:text-red-300">Đã hủy</span>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Đã hủy ngày 10/11/2024</div>
-</div>
-<div class="flex items-center gap-2">
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-9 px-4 bg-background-light dark:bg-background-dark text-text-light-primary dark:text-text-dark-primary text-sm font-medium leading-normal border border-border-light dark:border-border-dark transition-colors hover:bg-border-light dark:hover:bg-border-dark">
-<span class="material-symbols-outlined text-xl">info</span><span class="truncate">Xem chi tiết</span>
-</button>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-9 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors hover:bg-blue-600 dark:hover:bg-blue-500">
-<span class="material-symbols-outlined text-xl">refresh</span><span class="truncate">Đặt lại</span>
-</button>
-</div>
-</div>
-</div>
-<div class="mt-6 border-t border-border-light dark:border-border-dark pt-6">
-<div class="flex items-center gap-6 opacity-60">
-<div class="flex flex-col items-center">
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">SGN</div>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">TP. HCM</div>
-</div>
-<div class="flex flex-1 flex-col items-center">
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Vietnam Airlines</div>
-<div class="my-1 h-px w-full bg-border-light dark:bg-border-dark"></div>
-<div class="text-xs text-text-light-secondary dark:text-text-dark-secondary">15/11/2024</div>
-</div>
-<div class="flex flex-col items-center">
-<div class="text-lg font-bold text-text-light-primary dark:text-text-dark-primary">DAD</div>
-<div class="text-sm text-text-light-secondary dark:text-text-dark-secondary">Đà Nẵng</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
+}
+
+// --- 2. LẤY LỊCH SỬ ĐẶT CHỖ (Đã tối ưu Query) ---
+$filterType = $_GET['type'] ?? 'all';
+$typeCondition = "";
+$params = [$currentUser['id']];
+$dbType = '';
+switch ($filterType) {
+    case 'flight':
+        $dbType = 'flight';
+        break;
+    case 'hotel':
+        $dbType = 'hotel';
+        break;
+    case 'car':
+        $dbType = 'vehicle';
+        break;
+    default:
+        $dbType = '';
+        break;
+}
+
+if ($dbType !== '') {
+    $typeCondition = "AND b.booking_type = ?";
+    $params[] = $dbType;
+}
+// END SỬA LỖI
+
+// Map mã sân bay
+$airportMap = [
+    'SGN' => 'TP. HCM',
+    'HAN' => 'Hà Nội',
+    'DAD' => 'Đà Nẵng',
+    'CXR' => 'Nha Trang',
+    'PQC' => 'Phú Quốc',
+    'DLI' => 'Đà Lạt',
+    'HPH' => 'Hải Phòng',
+    'VDO' => 'Vân Đồn',
+    'VCA' => 'Cần Thơ'
+];
+
+// Query Clean: Không JOIN lung tung để tránh nhân bản dòng
+$sqlBookings = "
+    SELECT 
+        b.id as booking_id, b.booking_code, b.total_amount, b.status, b.payment_status, b.created_at, b.booking_type,
+        bd.service_type, bd.check_in, bd.check_out, bd.pickup_location,
+        -- Thông tin Chuyến bay
+        f.flight_code, f.departure_time, f.arrival_time, 
+        f.departure_airport, f.arrival_airport,
+        al.name as airline_name, al.logo as airline_logo,
+        -- Thông tin Khách sạn
+        h.name as homestay_name, h.main_image as homestay_image, h.address as homestay_address,
+        -- Thông tin Xe
+        v.name as vehicle_name, v.image as vehicle_image, v.brand as vehicle_brand, v.type as vehicle_type
+    FROM bookings b
+    JOIN booking_details bd ON b.id = bd.booking_id
+    -- Left Join từng loại dịch vụ
+    LEFT JOIN flights f ON (bd.service_type = 'flight' AND bd.service_id = f.id)
+    LEFT JOIN airlines al ON f.airline_id = al.id
+    LEFT JOIN homestays h ON (bd.service_type = 'hotel' AND bd.service_id = h.id)
+    LEFT JOIN vehicles v ON (bd.service_type = 'vehicle' AND bd.service_id = v.id)
+    
+    WHERE b.user_id = ? $typeCondition
+    ORDER BY b.created_at DESC
+";
+
+$bookings = db()->select($sqlBookings, $params);
+
+// Nhúng Header
+require_once 'includes/header.php';
+?>
+
+<main class="flex-1 bg-background-light dark:bg-gray-900 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+            
+            <aside class="w-full lg:w-1/4">
+                <div class="bg-white dark:bg-[#1a2831] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-24">
+                    <h3 class="text-lg font-bold mb-4 text-[#0d171c] dark:text-white">Hồ sơ của tôi</h3>
+                    
+                    <?php if($updateMsg): ?>
+                        <div class="mb-4 p-3 rounded text-sm <?php echo $updateType == 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'; ?>">
+                            <?php echo $updateMsg; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                        <div class="flex flex-col items-center mb-4">
+                            <div class="relative group cursor-pointer w-24 h-24">
+                                <?php 
+                                    $avatarUrl = !empty($currentUser['avatar']) && file_exists('../' . $currentUser['avatar']) 
+                                        ? '../' . $currentUser['avatar'] 
+                                        : "https://ui-avatars.com/api/?name=" . urlencode($currentUser['full_name']) . "&background=0da6f2&color=fff&size=128";
+                                ?>
+                                <img src="<?php echo $avatarUrl; ?>" alt="Avatar" class="w-full h-full rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md">
+                                <label class="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                    <span class="material-symbols-outlined">camera_alt</span>
+                                    <input type="file" name="avatar" class="hidden" accept="image/*">
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Chạm để đổi ảnh</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Họ và tên</label>
+                            <input type="text" name="full_name" value="<?php echo htmlspecialchars($currentUser['full_name']); ?>" class="w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-primary dark:text-white px-3 py-2">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
+                            <input type="email" value="<?php echo htmlspecialchars($currentUser['email']); ?>" disabled class="w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-900 text-gray-500 text-sm cursor-not-allowed px-3 py-2">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Số điện thoại</label>
+                            <input type="text" name="phone" value="<?php echo htmlspecialchars($currentUser['phone'] ?? ''); ?>" class="w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-primary dark:text-white px-3 py-2">
+                        </div>
+
+                        <button type="submit" name="update_profile" class="w-full py-2.5 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/30 mt-4">
+                            Lưu thay đổi
+                        </button>
+                    </form>
+                </div>
+            </aside>
+
+            <div class="w-full lg:w-3/4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div>
+                        <h1 class="text-2xl font-black text-[#0d171c] dark:text-white">Quản lý đặt chỗ</h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Xem lại lịch sử và trạng thái các chuyến đi của bạn</p>
+                    </div>
+                    <a href="trang_chu.php" class="px-4 py-2 bg-amber-500 text-[#0d171c] font-bold rounded-lg hover:bg-amber-400 transition-colors text-sm flex items-center gap-2">
+                        <span class="material-symbols-outlined text-lg">add_circle</span>
+                        Đặt chuyến mới
+                    </a>
+                </div>
+
+                <div class="border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto">
+                    <nav class="flex space-x-8 min-w-max">
+                        <a href="?type=all" class="pb-4 text-sm font-bold border-b-2 <?php echo $filterType == 'all' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'; ?>">
+                            Tất cả
+                        </a>
+                        <a href="?type=flight" class="pb-4 text-sm font-bold border-b-2 <?php echo $filterType == 'flight' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'; ?>">
+                            <span class="material-symbols-outlined text-lg align-bottom mr-1">flight</span>Chuyến bay
+                        </a>
+                        <a href="?type=hotel" class="pb-4 text-sm font-bold border-b-2 <?php echo $filterType == 'hotel' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'; ?>">
+                            <span class="material-symbols-outlined text-lg align-bottom mr-1">hotel</span>Homestays
+                        </a>
+                        <a href="?type=car" class="pb-4 text-sm font-bold border-b-2 <?php echo $filterType == 'car' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'; ?>">
+                            <span class="material-symbols-outlined text-lg align-bottom mr-1">directions_car</span>Xe
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="space-y-6">
+                    <?php if (empty($bookings)): ?>
+                        <div class="text-center py-16 bg-white dark:bg-[#1a2831] rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                            <span class="material-symbols-outlined text-6xl text-gray-300">receipt_long</span>
+                            <p class="mt-4 text-gray-500 font-medium">Bạn chưa có đơn đặt chỗ nào trong mục này.</p>
+                            <a href="trang_chu.php" class="mt-4 inline-block text-primary hover:underline font-bold">Khám phá ngay</a>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($bookings as $booking): ?>
+                            <div class="bg-white dark:bg-[#1a2831] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow group">
+                                <div class="p-6">
+                                    <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                                        <div class="flex items-center gap-4">
+                                            <div class="h-14 w-14 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shrink-0">
+                                                <?php if ($booking['booking_type'] == 'flight'): ?>
+                                                    <?php if(!empty($booking['airline_logo'])): ?>
+                                                        <img src="<?php echo $booking['airline_logo']; ?>" class="w-full h-full object-contain">
+                                                    <?php else: ?>
+                                                        <span class="material-symbols-outlined text-2xl text-primary">flight</span>
+                                                    <?php endif; ?>
+                                                <?php elseif ($booking['booking_type'] == 'hotel'): ?>
+                                                    <?php if(!empty($booking['homestay_image'])): ?>
+                                                        <img src="<?php echo $booking['homestay_image']; ?>" class="w-full h-full object-cover">
+                                                    <?php else: ?>
+                                                        <span class="material-symbols-outlined text-2xl text-orange-500">hotel</span>
+                                                    <?php endif; ?>
+                                                <?php elseif ($booking['booking_type'] == 'vehicle'): ?>
+                                                     <?php if(!empty($booking['vehicle_image'])): ?>
+                                                        <img src="<?php echo $booking['vehicle_image']; ?>" class="w-full h-full object-cover">
+                                                    <?php else: ?>
+                                                        <span class="material-symbols-outlined text-2xl text-green-600">directions_car</span>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="uppercase text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded tracking-wider">
+                                                        <?php echo $booking['booking_type']; ?>
+                                                    </span>
+                                                    <span class="text-xs text-gray-400">#<?php echo $booking['booking_code']; ?></span>
+                                                </div>
+                                                <h3 class="text-lg font-bold text-[#0d171c] dark:text-white mt-1 line-clamp-1">
+                                                    <?php 
+                                                        if ($booking['booking_type'] == 'flight') {
+                                                            $destName = $airportMap[$booking['arrival_airport']] ?? $booking['arrival_airport'];
+                                                            echo "Bay tới " . $destName;
+                                                        }
+                                                        elseif ($booking['booking_type'] == 'hotel') echo $booking['homestay_name'] ?? 'Homestays chưa rõ tên';
+                                                        elseif ($booking['booking_type'] == 'vehicle') echo $booking['vehicle_name'] ?? 'Thuê xe';
+                                                    ?>
+                                                </h3>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-right ml-auto">
+                                            <?php echo getStatusBadge($booking['status']); ?>
+                                            <p class="text-lg font-black text-primary mt-1"><?php echo formatCurrency($booking['total_amount']); ?></p>
+                                        </div>
+                                    </div>
+
+                                    <div class="border-t border-gray-100 dark:border-gray-700 my-4"></div>
+
+                                    <div class="text-sm text-gray-600 dark:text-gray-300">
+                                        <?php if ($booking['booking_type'] == 'flight'): ?>
+                                            <div class="flex items-center gap-4 sm:gap-8">
+                                                <div class="text-center min-w-[60px]">
+                                                    <div class="font-bold text-lg"><?php echo date('H:i', strtotime($booking['departure_time'])); ?></div>
+                                                    <div class="text-primary text-xs font-bold uppercase">
+                                                        <?php echo $booking['departure_airport']; ?>
+                                                    </div>
+                                                    <div class="text-[10px] text-gray-400">
+                                                        <?php echo $airportMap[$booking['departure_airport']] ?? ''; ?>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="flex-1 flex flex-col items-center">
+                                                    <span class="text-[10px] text-gray-400 mb-1"><?php echo $booking['airline_name']; ?></span>
+                                                    <div class="w-full h-[1px] bg-gray-300 dark:bg-gray-600 relative flex items-center justify-between">
+                                                        <div class="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                                                        <span class="material-symbols-outlined text-xs text-gray-400 bg-white dark:bg-[#1a2831] px-1">flight</span>
+                                                        <div class="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                                                    </div>
+                                                    <span class="text-[10px] text-gray-400 mt-1"><?php echo date('d/m/Y', strtotime($booking['departure_time'])); ?></span>
+                                                </div>
+                                                
+                                                <div class="text-center min-w-[60px]">
+                                                    <div class="font-bold text-lg"><?php echo date('H:i', strtotime($booking['arrival_time'])); ?></div>
+                                                    <div class="text-primary text-xs font-bold uppercase">
+                                                        <?php echo $booking['arrival_airport']; ?>
+                                                    </div>
+                                                    <div class="text-[10px] text-gray-400">
+                                                        <?php echo $airportMap[$booking['arrival_airport']] ?? ''; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        <?php elseif ($booking['booking_type'] == 'hotel'): ?>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <p class="flex items-center gap-2 text-gray-500 text-xs uppercase font-bold mb-1">Check-in / Check-out</p>
+                                                    <p class="font-semibold">
+                                                        <?php echo formatDateTime($booking['check_in'], 'd/m/Y'); ?> 
+                                                        <span class="text-gray-400 mx-1">→</span> 
+                                                        <?php echo formatDateTime($booking['check_out'], 'd/m/Y'); ?>
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p class="flex items-center gap-2 text-gray-500 text-xs uppercase font-bold mb-1">Địa chỉ</p>
+                                                    <p class="line-clamp-1" title="<?php echo $booking['homestay_address']; ?>">
+                                                        <?php echo $booking['homestay_address']; ?>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                        <?php elseif ($booking['booking_type'] == 'vehicle'): ?>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <p class="flex items-center gap-2 text-gray-500 text-xs uppercase font-bold mb-1">Ngày đón</p>
+                                                    <p class="font-semibold"><?php echo formatDateTime($booking['check_in'], 'd/m/Y'); ?></p>
+                                                </div>
+                                                <div>
+                                                    <p class="flex items-center gap-2 text-gray-500 text-xs uppercase font-bold mb-1">Điểm đón</p>
+                                                    <p class="line-clamp-1" title="<?php echo $booking['pickup_location']; ?>">
+                                                        <?php echo $booking['pickup_location'] ?? 'Chưa cập nhật'; ?>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <div class="flex justify-end gap-3 mt-6">
+                                        <?php if ($booking['status'] == 'pending'): ?>
+                                            <button class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors uppercase tracking-wide">
+                                                Hủy đơn
+                                            </button>
+                                            <button class="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 uppercase tracking-wide">
+                                                Thanh toán
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-xs font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors uppercase tracking-wide">
+                                                Chi tiết
+                                            </button>
+                                            <?php if ($booking['booking_type'] == 'flight'): ?>
+                                                <a href="tim_kiem_chuyenbay.php" class="px-4 py-2 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-colors uppercase tracking-wide">
+                                                    Đặt lại
+                                                </a>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
+
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+            </div>
+        </div>
+    </div>
 </main>
-</div>
-</div>
-</body></html>
+
+<footer class="bg-white dark:bg-[#1a2831] border-t border-gray-200 dark:border-gray-700 py-8 mt-auto">
+    <div class="container mx-auto px-4 text-center">
+        <p class="text-sm text-gray-500">© <?php echo date('Y'); ?> <?php echo SITE_NAME; ?>. All rights reserved.</p>
+    </div>
+</footer>
+
+</body>
+</html>

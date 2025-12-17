@@ -104,182 +104,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <!DOCTYPE html>
-<html class="light" lang="vi">
+<html lang="vi">
 <head>
     <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Đăng ký - <?php echo defined('SITE_NAME') ? SITE_NAME : 'Website'; ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Đăng ký - Flyhigh</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#0da6f2",
-                    },
-                    fontFamily: {
-                        "display": ["Plus Jakarta Sans", "sans-serif"]
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
 </head>
-<body class="font-display bg-gray-50">
-<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <div class="text-center">
-            <div class="flex justify-center">
-                <div class="size-16 text-primary">
-                    <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 42.4379C4 42.4379 14.0962 36.0744 24 41.1692C35.0664 46.8624 44 42.2078 44 42.2078L44 7.01134C44 7.01134 35.068 11.6577 24.0031 5.96913C14.0971 0.876274 4 7.27094 4 7.27094L4 42.4379Z" fill="currentColor"></path>
-                    </svg>
-                </div>
-            </div>
-            <h2 class="mt-6 text-3xl font-extrabold text-gray-900">
-                Tạo tài khoản mới
-            </h2>
-            <p class="mt-2 text-sm text-gray-600">
-                Đã có tài khoản? 
-                <a href="login.php" class="font-medium text-primary hover:text-primary/80">
-                    Đăng nhập ngay
-                </a>
-            </p>
-        </div>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center relative overflow-hidden">
 
-        <div class="bg-white rounded-xl shadow-lg p-8">
-            <?php if ($error): ?>
-            <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
-                <span class="material-symbols-outlined text-red-500">error</span>
-                <span><?php echo htmlspecialchars($error); ?></span>
+    <div class="absolute inset-0 z-0">
+        <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2000" class="w-full h-full object-cover opacity-60">
+        <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
+    </div>
+
+    <div class="relative z-10 w-full max-w-md p-6">
+        <div class="bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl p-8 md:p-10">
+            <div class="text-center mb-6">
+                <a href="trang_chu.php" class="inline-flex items-center gap-2 text-[#13ecc8] hover:scale-105 transition transform">
+                    <span class="material-symbols-outlined text-4xl">other_houses</span>
+                    <span class="font-extrabold text-2xl text-white">Flyhigh</span>
+                </a>
+                <h2 class="text-2xl font-bold text-white mt-4">Tạo tài khoản mới</h2>
             </div>
+
+            <?php if($error_message): ?>
+                <div class="bg-red-500/20 border border-red-500/50 text-red-200 p-3 rounded-xl text-sm font-bold text-center mb-4">
+                    ⚠️ <?php echo $error_message; ?>
+                </div>
+            <?php endif; ?>
+            <?php if($success_message): ?>
+                <div class="bg-green-500/20 border border-green-500/50 text-green-200 p-3 rounded-xl text-sm font-bold text-center mb-4">
+                    ✅ <?php echo $success_message; ?>
+                </div>
             <?php endif; ?>
 
-            <form method="POST" action="" class="space-y-5">
-                <div>
-                    <label for="full_name" class="block text-sm font-medium text-gray-700 mb-2">
-                        Họ và tên <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">person</span>
-                        <input 
-                            id="full_name" 
-                            name="full_name" 
-                            type="text" 
-                            required 
-                            value="<?php echo htmlspecialchars($_POST['full_name'] ?? ''); ?>"
-                            class="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="Nguyễn Văn A"
-                        />
-                    </div>
+            <form method="POST" class="space-y-4">
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-4 top-3 text-gray-400">person</span>
+                    <input type="text" name="fullname" required placeholder="Họ và tên"
+                           class="w-full bg-black/20 border border-white/10 rounded-xl px-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#13ecc8]">
+                </div>
+                
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-4 top-3 text-gray-400">mail</span>
+                    <input type="email" name="email" required placeholder="Email"
+                           class="w-full bg-black/20 border border-white/10 rounded-xl px-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#13ecc8]">
                 </div>
 
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                        Email <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">email</span>
-                        <input 
-                            id="email" 
-                            name="email" 
-                            type="email" 
-                            required 
-                            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-                            class="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="your.email@example.com"
-                        />
-                    </div>
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-4 top-3 text-gray-400">lock</span>
+                    <input type="password" name="password" required placeholder="Mật khẩu"
+                           class="w-full bg-black/20 border border-white/10 rounded-xl px-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#13ecc8]">
                 </div>
 
-                <div>
-                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">
-                        Số điện thoại
-                    </label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">phone</span>
-                        <input 
-                            id="phone" 
-                            name="phone" 
-                            type="tel" 
-                            value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>"
-                            class="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="0987654321"
-                        />
-                    </div>
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-4 top-3 text-gray-400">lock_reset</span>
+                    <input type="password" name="confirm_password" required placeholder="Nhập lại mật khẩu"
+                           class="w-full bg-black/20 border border-white/10 rounded-xl px-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#13ecc8]">
                 </div>
 
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                        Mật khẩu <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
-                        <input 
-                            id="password" 
-                            name="password" 
-                            type="password" 
-                            required 
-                            minlength="6"
-                            class="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="••••••••"
-                        />
-                    </div>
-                    <p class="mt-1 text-xs text-gray-500">Tối thiểu 6 ký tự</p>
-                </div>
-
-                <div>
-                    <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-2">
-                        Xác nhận mật khẩu <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
-                        <input 
-                            id="confirm_password" 
-                            name="confirm_password" 
-                            type="password" 
-                            required 
-                            minlength="6"
-                            class="appearance-none rounded-lg relative block w-full pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="••••••••"
-                        />
-                    </div>
-                </div>
-
-                <div class="flex items-start">
-                    <input 
-                        id="agree" 
-                        name="agree" 
-                        type="checkbox" 
-                        required
-                        class="h-4 w-4 mt-1 text-primary focus:ring-primary border-gray-300 rounded"
-                    />
-                    <label for="agree" class="ml-2 block text-sm text-gray-900">
-                        Tôi đồng ý với 
-                        <a href="#" class="text-primary hover:text-primary/80">Điều khoản sử dụng</a> 
-                        và 
-                        <a href="#" class="text-primary hover:text-primary/80">Chính sách bảo mật</a>
-                    </label>
-                </div>
-
-                <div>
-                    <button 
-                        type="submit" 
-                        class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                    >
-                        <span class="material-symbols-outlined mr-2">person_add</span>
-                        Đăng ký
-                    </button>
-                </div>
+                <button type="submit" class="w-full bg-[#13ecc8] hover:bg-[#0fb89c] text-gray-900 font-bold py-3.5 rounded-xl shadow-lg hover:scale-[1.02] transition mt-2">
+                    Đăng ký
+                </button>
             </form>
+
+            <div class="mt-6 text-center text-sm text-gray-400">
+                Đã có tài khoản? <a href="login.php" class="text-white font-bold hover:underline">Đăng nhập</a>
+            </div>
         </div>
-</div>
+    </div>
 </body>
-</html>
+</html> 

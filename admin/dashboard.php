@@ -4,9 +4,22 @@
  * Hiển thị thống kê tổng quan hệ thống
  */
 
-require_once '../config/config.php'; // Giữ nguyên đường dẫn ra config bên ngoài
-requireAdmin();
+require_once '../config/config.php';
 
+if (!function_exists('requireAdmin')) {
+    /**
+     * Kiểm tra người dùng đã đăng nhập và có quyền Admin chưa.
+     * Nếu không, chuyển hướng về trang đăng nhập hoặc trang báo lỗi.
+     */
+    function requireAdmin() {
+        if (!Auth::isLoggedIn() || !Auth::isAdmin()) {
+            // Chuyển hướng về trang đăng nhập/trang chủ người dùng
+            header('Location: ../login.php'); 
+            exit;
+        }
+    }
+}
+requireAdmin();
 // Lấy thống kê tổng quan
 $stats = [
     'total_users' => db()->count('users', "role = 'user'"),
